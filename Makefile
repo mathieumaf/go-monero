@@ -1,3 +1,5 @@
+GOLANGCI_LINT_VERSION ?= v2.12.2
+
 install:
 	go install -v ./cmd/monero
 
@@ -8,8 +10,9 @@ test:
 	go test -v ./pkg/...
 
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint run --config=.golangci.yaml
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run --config=.golangci.yaml
 
-.images.lock.yaml: .images.yaml
-	kbld -f $< --lock-output $@
-.PHONY: .images.lock.yaml
+image:
+	docker build -t go-monero .
+
+.PHONY: install build test lint image

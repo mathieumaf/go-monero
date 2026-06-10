@@ -17,17 +17,15 @@ type Client struct {
 
 // NewClient instantiates a new client that will receive monerod's zmq events.
 //
-// 	- `topic` is a fully-formed zmq topic to subscribe to
+//   - `topic` is a fully-formed zmq topic to subscribe to
 //
-// 	- `endpoint` is the full address where monerod has been configured to
-// 	publish the messages to, including the network schama. for instance,
-// 	considering that monerod has been started with
+//   - `endpoint` is the full address where monerod has been configured to
+//     publish the messages to, including the network schama. for instance,
+//     considering that monerod has been started with
 //
-//		monerod --zmq-pub tcp://127.0.0.1:18085
+//     monerod --zmq-pub tcp://127.0.0.1:18085
 //
-//	`endpoint` should be 'tcp://127.0.0.1:18085'.
-//
-//
+//     `endpoint` should be 'tcp://127.0.0.1:18085'.
 func NewClient(endpoint string, topic Topic) *Client {
 	return &Client{
 		endpoint: endpoint,
@@ -37,7 +35,6 @@ func NewClient(endpoint string, topic Topic) *Client {
 
 // Stream provides channels where instances of the desired topic object are
 // sent to.
-//
 type Stream struct {
 	ErrC chan error
 
@@ -51,7 +48,6 @@ type Stream struct {
 //
 // Clients listen to a single topic at a time - to listen to multiple topics,
 // create new clients and listen on the corresponding stream's channel.
-//
 func (c *Client) Listen(ctx context.Context) (*Stream, error) {
 	if err := c.listen(ctx, c.topic); err != nil {
 		return nil, fmt.Errorf("listen on '%s': %w", c.topic, err)
@@ -83,7 +79,6 @@ func (c *Client) Listen(ctx context.Context) (*Stream, error) {
 }
 
 // Close closes any established connection, if any.
-//
 func (c *Client) Close() error {
 	if c.sub == nil {
 		return nil

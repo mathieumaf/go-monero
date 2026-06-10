@@ -1,26 +1,22 @@
-//
 // This is a derived work based on `code.google.com/p/mlab-ns2/gae/ns/digest`
 // (original work of Bipasa Chattopadhyay bipasa@cs.unc.edu Eric Gavaletz
 // gavaletz@gmail.com Seon-Wook Park seon.wook@swook.net, from the fork
 // maintained by Bob Ziuchkovski @bobziuchkovski
 // (https://github.com/rkl-/digest).
-//
 package http
 
 import (
 	"bytes"
-	"crypto/md5" // nolint:gosec
+	"crypto/md5" //nolint:gosec
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
 
 // DigestAuthTransport is an implementation of http.RoundTripper that takes
 // care of http digest authentication.
-//
 type DigestAuthTransport struct {
 	Username string
 	Password string
@@ -29,7 +25,6 @@ type DigestAuthTransport struct {
 
 // NewDigestAuthTransport creates a new digest transport using the
 // http.DefaultTransport.
-//
 func NewDigestAuthTransport(
 	username, password string, rt http.RoundTripper,
 ) *DigestAuthTransport {
@@ -61,14 +56,13 @@ func (t *DigestAuthTransport) newCredentials(
 // RoundTrip makes a request expecting a 401 response that will require digest
 // authentication. It creates the credentials it needs and makes a follow-up
 // request.
-//
 func (t *DigestAuthTransport) RoundTrip(
 	req *http.Request,
 ) (*http.Response, error) {
 	finalRequest := req.Clone(req.Context())
 
 	if req.Body != nil {
-		bodyContents, err := ioutil.ReadAll(req.Body)
+		bodyContents, err := io.ReadAll(req.Body)
 		if err != nil {
 			return nil, fmt.Errorf("read all body: %w", err)
 		}
@@ -93,7 +87,7 @@ func (t *DigestAuthTransport) RoundTrip(
 	// we must ensure that the initial response has been totally drained
 	// otherwise the http client won't reuse the connection.
 	//
-	if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
 		return nil, fmt.Errorf("copy body to null dev: %w", err)
 	}
 	resp.Body.Close()
@@ -265,7 +259,7 @@ func h(data string) string {
 	// `gosec` won't be happy ("weak crypto primitive"), but it's what the
 	// server uses.
 	//
-	// nolint:gosec
+	//nolint:gosec
 	hf := md5.New()
 	if _, err := io.WriteString(hf, data); err != nil {
 		panic(fmt.Errorf("write string: %w", err))

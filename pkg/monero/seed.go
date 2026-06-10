@@ -8,35 +8,32 @@ import (
 )
 
 // KeySize denotes the size of the low-level public and private keys.
-//
 const KeySize = 32
 
 // SeedOption describes the type of functional options that can be provided to
 // the constructor to override default settings.
-//
 type SeedOption func(s *Seed)
 
 // WithNetwork overrides the default network set for Seed instances.
-//
 func WithNetwork(n Network) SeedOption {
 	return func(s *Seed) {
 		s.network = n
 	}
 }
 
-// Seed encapsulates funcionality that arised from the knowledge of a private
+// Seed encapsulates funcionality that arose from the knowledge of a private
 // spend key.
 //
 // Differently from Bitcoin, Monero users posses two sets of private and public
 // keys:
-//		  private | public
-//                ------- | ------
-//	          ks      | Ks		 spend
-//	          kv      | Kv		 view
+//
+//			  private | public
+//	               ------- | ------
+//		          ks      | Ks		 spend
+//		          kv      | Kv		 view
 //
 // From the private spend key, a private view key is derived. Of each of them,
 // a corresponding public key is formed.
-//
 type Seed struct {
 	privateSpendKey []byte
 	network         Network
@@ -53,7 +50,6 @@ type Seed struct {
 // this `privateSpendKey` (an immense number "impossible" to guess that here is
 // represented as a 32-byte array) is the only one key that is _really_
 // important to safe-guard as the other one is derived out of it.
-//
 func NewSeed(privateSpendKey []byte, opts ...SeedOption) *Seed {
 	s := &Seed{
 		privateSpendKey: privateSpendKey,
@@ -76,10 +72,9 @@ func NewSeed(privateSpendKey []byte, opts ...SeedOption) *Seed {
 // deriveKeys takes the private spend key and, out of it, derives all the other
 // three keys:
 //
-// 	- private view
-// 	- public spend
-// 	- public view
-//
+//   - private view
+//   - public spend
+//   - public view
 func (s *Seed) deriveKeys() {
 	moneroutil.ScReduce32((*moneroutil.Key)(s.privateSpendKey))
 
@@ -97,7 +92,6 @@ func (s *Seed) deriveKeys() {
 // checksum used for error-checking.
 //
 // ps.: in this implementation, only support for the English wordlist is provided.
-//
 func (s *Seed) Mnemonic() []string {
 	mnemonic := make([]string, 25)
 	wordlistSize := uint32(len(WordlistEnglish))
@@ -129,7 +123,6 @@ func (s *Seed) Mnemonic() []string {
 
 // PrimaryAddress gives the base58-formatted representation of the primary
 // address of this seed.
-//
 func (s *Seed) PrimaryAddress() string {
 	hash := keccak256(
 		s.network.PublicAddressBase58Prefix(),

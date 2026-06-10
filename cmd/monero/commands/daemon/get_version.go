@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type getVersionCommand struct {
@@ -49,7 +49,6 @@ func (c *getVersionCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *getVersionCommand) pretty(v *daemon.GetVersionResult) {
 	table := display.NewTable()
 

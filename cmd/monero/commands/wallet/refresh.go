@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/wallet"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/wallet"
 )
 
 type refreshCommand struct {
@@ -54,7 +54,6 @@ func (c *refreshCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *refreshCommand) pretty(v *wallet.RefreshResult) {
 	table := display.NewTable()
 	table.AddRow("Blocks Fetched:", v.BlocksFetched)

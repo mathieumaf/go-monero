@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cirocosta/go-monero/pkg/rpc"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/pkg/rpc"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
-// nolint
-func ExampleGetHeight() {
+//nolint
+func ExampleClient_GetHeight() {
 	ctx := context.Background()
 	addr := "http://localhost:18081"
 

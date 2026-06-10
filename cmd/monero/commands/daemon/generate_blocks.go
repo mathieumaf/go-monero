@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type generateBlocksCommand struct {
@@ -33,7 +33,7 @@ func (c *generateBlocksCommand) Cmd() *cobra.Command {
 	return cmd
 }
 
-func (c *generateBlocksCommand) RunE(cmd *cobra.Command, args []string) error {
+func (c *generateBlocksCommand) RunE(_ *cobra.Command, _ []string) error {
 	ctx, cancel := options.RootOpts.Context()
 	defer cancel()
 
@@ -59,7 +59,6 @@ func (c *generateBlocksCommand) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *generateBlocksCommand) pretty(v *daemon.GenerateBlocksResult) {
 	table := display.NewTable()
 

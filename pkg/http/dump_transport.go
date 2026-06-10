@@ -10,13 +10,11 @@ import (
 // DumpTransport implements the `net/http.RoundTripper` interface wrapping
 // another Roundtripper dumping to stdout both the requests and the responses
 // that it sees passing through.
-//
 type DumpTransport struct {
 	R http.RoundTripper
 }
 
 // NewDumpTransport instantiates a new DumpTransport.
-//
 func NewDumpTransport(rt http.RoundTripper) *DumpTransport {
 	return &DumpTransport{
 		R: rt,

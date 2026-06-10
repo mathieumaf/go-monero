@@ -9,7 +9,6 @@ import (
 
 // ClientConfig provides extra configuration to tweak the behavior of the HTTP
 // client instantiated via `NewClient`.
-//
 type ClientConfig struct {
 	// TLSSkipVerify indicates that the client should not perform any
 	// hostname or certificate chain of trust validations.
@@ -87,7 +86,6 @@ func (c ClientConfig) Validate() error {
 
 // NewClient instantiates a new `http.Client` based on the client configuration
 // supplied.
-//
 func NewClient(cfg ClientConfig) (*http.Client, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate: %w", err)
@@ -114,7 +112,13 @@ func NewClient(cfg ClientConfig) (*http.Client, error) {
 		WithInsecureSkipVerify()(tlsConfig)
 	}
 
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf(
+			"http.DefaultTransport is not an *http.Transport")
+	}
+
+	transport := defaultTransport.Clone()
 	transport.TLSClientConfig = tlsConfig
 
 	client := &http.Client{

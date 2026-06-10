@@ -8,9 +8,9 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type syncInfoCommand struct {
@@ -52,7 +52,6 @@ func (c *syncInfoCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *syncInfoCommand) pretty(v *daemon.SyncInfoResult) {
 	table := display.NewTable()
 

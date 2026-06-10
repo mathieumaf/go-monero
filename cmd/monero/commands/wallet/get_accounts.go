@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/wallet"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/wallet"
 )
 
 type getAccountsCommand struct {
@@ -66,7 +66,6 @@ func (c *getAccountsCommand) pretty(v *wallet.GetAccountsResult) {
 	c.prettyAccounts(v)
 }
 
-// nolint:forbidigo
 func (c *getAccountsCommand) prettySummary(v *wallet.GetAccountsResult) {
 	table := display.NewTable()
 
@@ -77,7 +76,6 @@ func (c *getAccountsCommand) prettySummary(v *wallet.GetAccountsResult) {
 	fmt.Println(table)
 }
 
-// nolint:forbidigo
 func (c *getAccountsCommand) prettyAccounts(v *wallet.GetAccountsResult) {
 	table := display.NewTable()
 

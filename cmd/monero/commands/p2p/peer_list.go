@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/proxy"
 
-	"github.com/cirocosta/go-monero/pkg/levin"
+	"github.com/mathieumaf/go-monero/pkg/levin"
 )
 
 type peerListCommand struct {
@@ -43,7 +43,6 @@ func (c *peerListCommand) Cmd() *cobra.Command {
 	return cmd
 }
 
-// nolint:forbidigo
 func (c *peerListCommand) RunE(_ *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()

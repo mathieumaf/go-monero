@@ -3,7 +3,7 @@ package daemon
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
 )
 
 var RootCommand = &cobra.Command{

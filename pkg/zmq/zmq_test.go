@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cirocosta/go-monero/pkg/zmq"
+	"github.com/mathieumaf/go-monero/pkg/zmq"
 )
 
 func TestJSONFromFrame(t *testing.T) {
@@ -44,8 +44,6 @@ func TestJSONFromFrame(t *testing.T) {
 			expectedJSON:  []byte(`[{"foo":"bar"}]`),
 		},
 	} {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

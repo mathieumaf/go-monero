@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/pkg/monero"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/pkg/monero"
 )
 
 type generateCommand struct {
@@ -89,7 +89,8 @@ func (c *generateCommand) prettyMnemonic(seed *monero.Seed) {
 }
 
 func (c *generateCommand) row(key string, values ...string) []interface{} {
-	res := []interface{}{key}
+	res := make([]interface{}, 0, 1+len(values))
+	res = append(res, key)
 	for _, v := range values {
 		res = append(res, v)
 	}
@@ -109,7 +110,7 @@ func (c *generateCommand) privateKey() ([]byte, error) {
 }
 
 func (c *generateCommand) networkOptions() string {
-	strs := []string{}
+	strs := make([]string, 0, 4)
 
 	for _, network := range []monero.Network{
 		monero.NetworkMainnet,
@@ -135,7 +136,7 @@ func (c *generateCommand) network() (monero.Network, error) {
 		return monero.NetworkFakechain, nil
 	}
 
-	err := fmt.Errorf("unknown network %s", c.network)
+	err := fmt.Errorf("unknown network %s", c.networkName)
 	return monero.NetworkFakechain, err
 }
 
