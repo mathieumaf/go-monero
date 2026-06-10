@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
 )
 
 type onGetBlockHashCommand struct {
@@ -44,7 +44,6 @@ func (c *onGetBlockHashCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *onGetBlockHashCommand) pretty(v string) {
 	fmt.Println(v)
 }

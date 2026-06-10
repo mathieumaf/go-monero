@@ -41,7 +41,6 @@ func (c *Client) GetAddress(
 
 // GetBalance gets the balance of the wallet configured for the wallet rpc
 // server.
-//
 func (c *Client) GetBalance(
 	ctx context.Context, params GetBalanceRequestParameters,
 ) (*GetBalanceResult, error) {

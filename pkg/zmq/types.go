@@ -15,7 +15,7 @@ const (
 type MinimalChainMain struct {
 	FirstHeight uint64   `json:"first_height"`
 	FirstPrevID string   `json:"first_prev_id"`
-	Ids         []string `json:"ids"`
+	IDs         []string `json:"ids"`
 }
 
 type FullChainMain struct {

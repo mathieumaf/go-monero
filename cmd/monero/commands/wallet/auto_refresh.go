@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/wallet"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/wallet"
 )
 
 type autoRefreshCommand struct {
@@ -49,8 +49,7 @@ func (c *autoRefreshCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
-func (c *autoRefreshCommand) pretty(v *wallet.AutoRefreshResult) {
+func (c *autoRefreshCommand) pretty(_ *wallet.AutoRefreshResult) {
 	fmt.Println("OK")
 }
 

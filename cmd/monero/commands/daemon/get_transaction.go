@@ -10,10 +10,10 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/constant"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/constant"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type getTransactionCommand struct {
@@ -96,7 +96,6 @@ func (c *getTransactionCommand) pretty(ctx context.Context, v *daemon.GetTransac
 	return c.prettyInputs(ctx, txnDetails)
 }
 
-// nolint:forbidigo
 func (c *getTransactionCommand) prettyHeader(
 	ctx context.Context,
 	txn daemon.GetTransactionsResultTransaction,
@@ -134,7 +133,6 @@ func (c *getTransactionCommand) prettyHeader(
 	return nil
 }
 
-// nolint:forbidigo
 func (c *getTransactionCommand) prettyOutputs(
 	txn daemon.GetTransactionsResultTransaction,
 	txnDetails *daemon.TransactionJSON,
@@ -163,7 +161,6 @@ func (c *getTransactionCommand) prettyOutputs(
 	return nil
 }
 
-// nolint:forbidigo
 func (c *getTransactionCommand) prettyInputs(
 	ctx context.Context,
 	txnDetails *daemon.TransactionJSON,

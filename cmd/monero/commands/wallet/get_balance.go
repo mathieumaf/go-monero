@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/constant"
-	"github.com/cirocosta/go-monero/pkg/rpc/wallet"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/constant"
+	"github.com/mathieumaf/go-monero/pkg/rpc/wallet"
 )
 
 type getBalanceCommand struct {
@@ -80,7 +80,6 @@ func (c *getBalanceCommand) pretty(v *wallet.GetBalanceResult) {
 	}
 }
 
-// nolint:forbidigo
 func (c *getBalanceCommand) prettyTotal(v *wallet.GetBalanceResult) {
 	table := display.NewTable()
 
@@ -102,7 +101,6 @@ func (c *getBalanceCommand) prettyTotal(v *wallet.GetBalanceResult) {
 	fmt.Println(table)
 }
 
-// nolint:forbidigo
 func (c *getBalanceCommand) prettySubAddress(saddr wallet.SubAddress) {
 	table := display.NewTable()
 

@@ -3,7 +3,6 @@ package monero
 import "fmt"
 
 // Network denotes a type of Monero network to gather information about.
-//
 type Network string
 
 const (
@@ -25,5 +24,5 @@ func (n Network) PublicAddressBase58Prefix() []byte {
 		return NetworkMainnet.PublicAddressBase58Prefix()
 	}
 
-	panic(fmt.Errorf("'%s' is not a valid netowrk", n))
+	panic(fmt.Errorf("'%s' is not a valid network", n))
 }

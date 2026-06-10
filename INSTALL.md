@@ -6,8 +6,8 @@ If you already have [Go] installed, you can use to Go toolchain to build from
 source and install it for you (under `$GOPATH/bin`):
 
 ```console
-$ GO111MODULE=on go get github.com/cirocosta/go-monero/cmd/monero
-go: downloading github.com/cirocosta/go-monero v0.0.3
+$ GO111MODULE=on go get github.com/mathieumaf/go-monero/cmd/monero
+go: downloading github.com/mathieumaf/go-monero v0.0.3
 
 $ monero --help
 Daemon, Wallet, and p2p command line monero CLI
@@ -31,7 +31,7 @@ In the [releases page] you'll find the pre-compiled releases for each platform.
 ```bash
 export VERSION=0.0.3
 
-curl -SL -o- https://github.com/cirocosta/go-monero/releases/download/v$VERSION/go-monero_$VERSION_Linux_x86_64.tar.gz | \
+curl -SL -o- https://github.com/mathieumaf/go-monero/releases/download/v$VERSION/go-monero_$VERSION_Linux_x86_64.tar.gz | \
   tar xvzf monero
 mv ./monero /usr/local/bin
 ```
@@ -71,8 +71,8 @@ gpg:               imported: 1
 2. download the archive for your platform as well as the checksums
 
 ```console
-$ curl -SOL https://github.com/cirocosta/go-monero/releases/download/v0.0.3/go-monero_0.0.3_Linux_x86_64.tar.gz
-$ curl -SOL https://github.com/cirocosta/go-monero/releases/download/v0.0.3/checksums.txt.asc
+$ curl -SOL https://github.com/mathieumaf/go-monero/releases/download/v0.0.3/go-monero_0.0.3_Linux_x86_64.tar.gz
+$ curl -SOL https://github.com/mathieumaf/go-monero/releases/download/v0.0.3/checksums.txt.asc
 ```
 
 
@@ -115,4 +115,4 @@ $ monero version
 
 
 [Go]: https://golang.org/dl/
-[releases page]: https://github.com/cirocosta/go-monero/releases
+[releases page]: https://github.com/mathieumaf/go-monero/releases

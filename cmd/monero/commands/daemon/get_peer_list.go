@@ -8,9 +8,9 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type getPeerListCommand struct {
@@ -64,7 +64,6 @@ func (c *getPeerListCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// nolint:forbidigo
 func (c *getPeerListCommand) pretty(v *daemon.GetPeerListResult) {
 	table := display.NewTable()
 
@@ -90,7 +89,6 @@ func (c *getPeerListCommand) pretty(v *daemon.GetPeerListResult) {
 				humanize.Time(time.Unix(peer.LastSeen, 0)),
 			)
 		}
-
 	}
 
 	fmt.Println(table)

@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/display"
-	"github.com/cirocosta/go-monero/cmd/monero/options"
-	"github.com/cirocosta/go-monero/pkg/rpc/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/display"
+	"github.com/mathieumaf/go-monero/cmd/monero/options"
+	"github.com/mathieumaf/go-monero/pkg/rpc/daemon"
 )
 
 type setBansCommand struct {
@@ -124,7 +124,6 @@ func (c *setBansCommand) bansFromFilepath() ([]daemon.SetBansBan, error) {
 	return bans, nil
 }
 
-// nolint:forbidigo
 func (c *setBansCommand) pretty(v *daemon.SetBansResult) {
 	fmt.Println(v.Status)
 }

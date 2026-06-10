@@ -33,7 +33,6 @@ const (
 // GetAlternateChains displays alternative chains seen by the node.
 //
 // (restricted).
-//
 func (c *Client) GetAlternateChains(
 	ctx context.Context,
 ) (*GetAlternateChainsResult, error) {
@@ -51,7 +50,6 @@ func (c *Client) GetAlternateChains(
 // about the use of each RPC method and endpoint.
 //
 // (restricted).
-//
 func (c *Client) RPCAccessTracking(
 	ctx context.Context,
 ) (*RPCAccessTrackingResult, error) {
@@ -66,7 +64,6 @@ func (c *Client) RPCAccessTracking(
 }
 
 // HardForkInfo looks up informaiton about the last hard fork.
-//
 func (c *Client) HardForkInfo(
 	ctx context.Context,
 ) (*HardForkInfoResult, error) {
@@ -83,7 +80,6 @@ func (c *Client) HardForkInfo(
 // GetBans retrieves the list of banned IPs.
 //
 // (restricted).
-//
 func (c *Client) GetBans(ctx context.Context) (*GetBansResult, error) {
 	resp := &GetBansResult{}
 
@@ -108,7 +104,6 @@ type SetBansRequestParameters struct {
 // SetBans bans a particular host.
 //
 // (restricted).
-//
 func (c *Client) SetBans(
 	ctx context.Context, params SetBansRequestParameters,
 ) (*SetBansResult, error) {
@@ -125,7 +120,6 @@ func (c *Client) SetBans(
 // GetVersion retrieves the version of monerod that the node uses.
 //
 // (restricted).
-//
 func (c *Client) GetVersion(ctx context.Context) (*GetVersionResult, error) {
 	resp := &GetVersionResult{}
 
@@ -139,7 +133,6 @@ func (c *Client) GetVersion(ctx context.Context) (*GetVersionResult, error) {
 
 // GenerateBlocksRequestParameters is the set of parameters to be passed to the
 // GenerateBlocks RPC method.
-//
 type GenerateBlocksRequestParameters struct {
 	// AmountOfBlocks is the number of blocks to be generated.
 	//
@@ -165,7 +158,6 @@ type GenerateBlocksRequestParameters struct {
 // Difficulty is set permanently to 1 for regtest.
 //
 // (restricted).
-//
 func (c *Client) GenerateBlocks(
 	ctx context.Context, params GenerateBlocksRequestParameters,
 ) (*GenerateBlocksResult, error) {
@@ -223,7 +215,6 @@ func (c *Client) RelayTx(
 }
 
 // GetBlockTemplate gets a block template on which mining a new block.
-//
 func (c *Client) GetBlockTemplate(
 	ctx context.Context, walletAddress string, reserveSize uint,
 ) (*GetBlockTemplateResult, error) {
@@ -256,7 +247,6 @@ func (c *Client) GetConnections(
 
 // GetInfo retrieves general information about the state of the node and the
 // network.
-//
 func (c *Client) GetInfo(ctx context.Context) (*GetInfoResult, error) {
 	resp := &GetInfoResult{}
 
@@ -298,7 +288,6 @@ func (c *Client) GetCoinbaseTxSum(
 }
 
 // InnerJSON parses the content of the JSON embedded in `GetBlockResult`.
-//
 func (j *GetBlockResult) InnerJSON() (*GetBlockResultJSON, error) {
 	res := &GetBlockResultJSON{}
 
@@ -329,7 +318,6 @@ func (c *Client) GetBlockHeadersRange(
 
 // GetBlockHeaderByHeight retrieves block header information for either one or
 // multiple blocks.
-//
 func (c *Client) GetBlockHeaderByHeight(
 	ctx context.Context, height uint64,
 ) (*GetBlockHeaderByHeightResult, error) {
@@ -348,7 +336,6 @@ func (c *Client) GetBlockHeaderByHeight(
 
 // GetBlockHeaderByHash retrieves block header information for either one or
 // multiple blocks.
-//
 func (c *Client) GetBlockHeaderByHash(
 	ctx context.Context, hashes []string,
 ) (*GetBlockHeaderByHashResult, error) {
@@ -367,7 +354,6 @@ func (c *Client) GetBlockHeaderByHash(
 
 // GetBlockRequestParameters represents the set of possible parameters that can
 // be used for submitting a call to the `get_block` jsonrpc method.
-//
 type GetBlockRequestParameters struct {
 	Height uint64 `json:"height,omitempty"`
 	Hash   string `json:"hash,omitempty"`
@@ -375,7 +361,6 @@ type GetBlockRequestParameters struct {
 
 // GetBlock fetches full block information from a block at a particular hash OR
 // height.
-//
 func (c *Client) GetBlock(
 	ctx context.Context, params GetBlockRequestParameters,
 ) (*GetBlockResult, error) {

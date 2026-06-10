@@ -6,10 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cirocosta/go-monero/cmd/monero/commands/address"
-	"github.com/cirocosta/go-monero/cmd/monero/commands/daemon"
-	"github.com/cirocosta/go-monero/cmd/monero/commands/p2p"
-	"github.com/cirocosta/go-monero/cmd/monero/commands/wallet"
+	"github.com/mathieumaf/go-monero/cmd/monero/commands/address"
+	"github.com/mathieumaf/go-monero/cmd/monero/commands/daemon"
+	"github.com/mathieumaf/go-monero/cmd/monero/commands/p2p"
+	"github.com/mathieumaf/go-monero/cmd/monero/commands/wallet"
 )
 
 var (
@@ -22,7 +22,6 @@ var rootCmd = &cobra.Command{
 	Short: "Daemon, Wallet, and p2p command line monero CLI",
 }
 
-// nolint:forbidigo
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "print the version of this cli",

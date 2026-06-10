@@ -2,7 +2,6 @@ package daemon
 
 // RPCResultFooter contains the set of fields that every RPC result message
 // will contain.
-//
 type RPCResultFooter struct {
 	// Status dictates whether the request worked or not. "OK" means good.
 	//
@@ -27,7 +26,6 @@ type RPCResultFooter struct {
 
 // GetAlternateChainsResult is the result of a call to the GetAlternateChains
 // RPC method.
-//
 type GetAlternateChainsResult struct {
 	// Chains is the array of alternate chains seen by the node.
 	//
@@ -76,7 +74,6 @@ type GetAlternateChainsResult struct {
 
 // AccessTrackingResult is the result of a call to the RPCAccessTracking RPC
 // method.
-//
 type RPCAccessTrackingResult struct {
 	Data []struct {
 		// Count is the number of times that the monero daemon received
@@ -103,7 +100,6 @@ type RPCAccessTrackingResult struct {
 }
 
 // HardForkInfoResult is the result of a call to the HardForkInfo RPC method.
-//
 type HardForkInfoResult struct {
 	// EarliestHeight is the earliest height at which <version> is allowed.
 	//
@@ -146,7 +142,6 @@ type HardForkInfoResult struct {
 }
 
 // GetVersionResult is the result of a call to the GetVersion RPC method.
-//
 type GetVersionResult struct {
 	Release bool   `json:"release"`
 	Version uint64 `json:"version"`
@@ -155,7 +150,6 @@ type GetVersionResult struct {
 }
 
 // GetBansResult is the result of a call to the GetBans RPC method.
-//
 type GetBansResult struct {
 	// Bans contains the list of nodes banned by this node.
 	//
@@ -179,14 +173,12 @@ type GetBansResult struct {
 }
 
 // SetBansResult is the result of a call to the SetBans RPC method.
-//
 type SetBansResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
 // GetFeeEstimateResult is the result of a call to the GetFeeEstimate RPC
 // method.
-//
 type GetFeeEstimateResult struct {
 	// Fee is the per kB fee estimate.
 	//
@@ -201,7 +193,6 @@ type GetFeeEstimateResult struct {
 }
 
 // GetInfoResult is the result of a call to the GetInfo RPC method.
-//
 type GetInfoResult struct {
 	AdjustedTime              uint64 `json:"adjusted_time"`
 	AltBlocksCount            int    `json:"alt_blocks_count"`
@@ -247,7 +238,6 @@ type GetInfoResult struct {
 
 // GetBlockTemplateResult is the result of a call to the GetBlockTemplate RPC
 // method.
-//
 type GetBlockTemplateResult struct {
 	// BlockhashingBlob is the blob on which to try to find a valid nonce.
 	//
@@ -292,7 +282,6 @@ type Peer struct {
 }
 
 // GetPeerListResult is the result of a call to the GetPeerList RPC method.
-//
 type GetPeerListResult struct {
 	GrayList  []Peer `json:"gray_list"`
 	WhiteList []Peer `json:"white_list"`
@@ -302,7 +291,6 @@ type GetPeerListResult struct {
 
 // GetConnectionsResult is the result of a call to the GetConnections RPC
 // method.
-//
 type GetConnectionsResult struct {
 	Connections []struct {
 		Address         string `json:"address"`
@@ -344,7 +332,6 @@ type GetOutsResult struct {
 }
 
 // GetHeightResult is the result of a call to the GetHeight RPC method.
-//
 type GetHeightResult struct {
 	Hash   string `json:"hash"`
 	Height uint64 `json:"height"`
@@ -353,7 +340,6 @@ type GetHeightResult struct {
 }
 
 // GetNetStatsResult is the result of a call to the GetNetStats RPC method.
-//
 type GetNetStatsResult struct {
 	StartTime       int64  `json:"start_time"`
 	TotalBytesIn    uint64 `json:"total_bytes_in"`
@@ -366,7 +352,6 @@ type GetNetStatsResult struct {
 
 // GetPublicNodesResult is the result of a call to the GetPublicNodes RPC
 // method.
-//
 type GetPublicNodesResult struct {
 	WhiteList []Peer `json:"white"`
 	GrayList  []Peer `json:"gray"`
@@ -376,7 +361,6 @@ type GetPublicNodesResult struct {
 
 // GenerateBlocksResult is the result of a call to the GenerateBlocks RPC
 // method.
-//
 type GenerateBlocksResult struct {
 	Blocks []string `json:"blocks"`
 	Height int      `json:"height"`
@@ -385,7 +369,6 @@ type GenerateBlocksResult struct {
 }
 
 // GetBlockCountResult is the result of a call to the GetBlockCount RPC method.
-//
 type GetBlockCountResult struct {
 	Count uint64 `json:"count"`
 
@@ -393,14 +376,12 @@ type GetBlockCountResult struct {
 }
 
 // RelayTxResult is the result of a call to the RelayTx RPC method.
-//
 type RelayTxResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
 // GetCoinbaseTxSumResult is the result of a call to the GetCoinbaseTxSum RPC
 // method.
-//
 type GetCoinbaseTxSumResult struct {
 	EmissionAmount      int64  `json:"emission_amount"`
 	EmissionAmountTop64 int    `json:"emission_amount_top64"`
@@ -520,7 +501,6 @@ type BlockHeader struct {
 }
 
 // GetBlockResult is the result of a call to the GetBlock RPC method.
-//
 type GetBlockResult struct {
 	// Blob is a hexadecimal representation of the block.
 	//
@@ -543,7 +523,6 @@ type GetBlockResult struct {
 }
 
 // GetBlockResultJSON is the internal json-formatted block information.
-//
 type GetBlockResultJSON struct {
 	// MajorVersion (same as in the block header)
 	//
@@ -624,7 +603,6 @@ func (c *GetBlockResultJSON) MinerOutputs() uint64 {
 }
 
 // SyncInfoResult is the result of a call to the SyncInfo RPC method.
-//
 type SyncInfoResult struct {
 	Credits uint64 `json:"credits"`
 
@@ -670,7 +648,6 @@ type SyncInfoResult struct {
 
 // GetLastBlockHeaderResult is the result of a call to the GetLastBlockHeader
 // RPC method.
-//
 type GetLastBlockHeaderResult struct {
 	BlockHeader BlockHeader `json:"block_header"`
 
@@ -679,7 +656,6 @@ type GetLastBlockHeaderResult struct {
 
 // GetBlockHeadersRangeResult is the result of a call to the
 // GetBlockHeadersRange RPC method.
-//
 type GetBlockHeadersRangeResult struct {
 	Headers []BlockHeader `json:"headers"`
 
@@ -688,7 +664,6 @@ type GetBlockHeadersRangeResult struct {
 
 // GetBlockHeaderByHeightResult is the result of a call to the
 // GetBlockHeaderByHeight RPC method.
-//
 type GetBlockHeaderByHeightResult struct {
 	BlockHeader BlockHeader `json:"block_header"`
 
@@ -697,7 +672,6 @@ type GetBlockHeaderByHeightResult struct {
 
 // GetBlockHeaderByHashResult is the result of a call to the
 // GetBlockHeaderByHash RPC method.
-//
 type GetBlockHeaderByHashResult struct {
 	BlockHeader  BlockHeader   `json:"block_header"`
 	BlockHeaders []BlockHeader `json:"block_headers"`
@@ -727,7 +701,6 @@ type MiningStatusResult struct {
 
 // GetTransactionPoolStatsResult is the result of a call to the
 // GetTransactionPoolStats RPC method.
-//
 type GetTransactionPoolStatsResult struct {
 	PoolStats struct {
 		BytesMax   uint64 `json:"bytes_max"`
