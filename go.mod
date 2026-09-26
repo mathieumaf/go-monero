@@ -3,7 +3,7 @@ module github.com/mathieumaf/go-monero
 go 1.26.0
 
 require (
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/gosuri/uitable v0.0.4
 	github.com/paxos-bankchain/moneroutil v0.0.0-20170611151923-33d7e0c11a62
