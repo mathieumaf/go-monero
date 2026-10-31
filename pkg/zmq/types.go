@@ -10,7 +10,41 @@ const (
 
 	TopicMinimalChainMain Topic = "json-minimal-chain_main"
 	TopicFullChainMain    Topic = "json-full-chain_main"
+
+	// TopicFullMinerData is published on each chain change with the inputs
+	// needed to build a block template. There is no minimal variant.
+	TopicFullMinerData Topic = "json-full-miner_data"
 )
+
+// MinerTxBacklog is one mineable mempool transaction in a miner_data
+// event.
+type MinerTxBacklog struct {
+	// ID is the transaction hash, hex-encoded.
+	ID string `json:"id"`
+	// Weight is the transaction weight used for fee and block limits.
+	Weight uint64 `json:"weight"`
+	// Fee is the mining fee in atomic units.
+	Fee uint64 `json:"fee"`
+}
+
+// FullMinerData is the json-full-miner_data payload.
+//
+// monerod publishes one JSON object, not an array, on each chain change.
+// MajorVersion is the hard-fork version of the next block. The publisher
+// does not include a minor version; that field exists on chain_main
+// blocks only.
+type FullMinerData struct {
+	MajorVersion uint8  `json:"major_version"`
+	Height       uint64 `json:"height"`
+	PrevID       string `json:"prev_id"`
+	SeedHash     string `json:"seed_hash"`
+	// Difficulty is the 128-bit network difficulty as a 0x-prefixed
+	// hexadecimal string, without leading zeros, matching monerod.
+	Difficulty            string           `json:"difficulty"`
+	MedianWeight          uint64           `json:"median_weight"`
+	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
+	TxBacklog             []MinerTxBacklog `json:"tx_backlog"`
+}
 
 type MinimalChainMain struct {
 	FirstHeight uint64   `json:"first_height"`
