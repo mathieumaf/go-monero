@@ -177,12 +177,31 @@ type SetBansResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
+// Fee priority indexes into GetFeeEstimateResult.Fees. Monerod returns the
+// four tiers in this order.
+const (
+	// FeePrioritySlow is the slow fee tier.
+	FeePrioritySlow = 0
+	// FeePriorityNormal is the normal fee tier.
+	FeePriorityNormal = 1
+	// FeePriorityFast is the fast fee tier.
+	FeePriorityFast = 2
+	// FeePriorityFastest is the fastest fee tier.
+	FeePriorityFastest = 3
+)
+
 // GetFeeEstimateResult is the result of a call to the GetFeeEstimate RPC
 // method.
 type GetFeeEstimateResult struct {
-	// Fee is the per kB fee estimate.
+	// Fee is the per-byte fee estimate in atomic units.
 	//
 	Fee int `json:"fee"`
+
+	// Fees holds per-byte fees, in atomic units, for the slow, normal, fast,
+	// and fastest priorities. FeePrioritySlow and the following constants are
+	// the indexes.
+	//
+	Fees []uint64 `json:"fees"`
 
 	// QuantizationMask indicates that the  fee should be rounded up to an
 	// even multiple of this value.
@@ -289,32 +308,41 @@ type GetPeerListResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
+// ConnectionInfo is one P2P connection. get_connections returns these
+// directly, and sync_info nests one under each peer's info field. Field names
+// match monerod's connection_info. AddressType uses epee::net_utils::address_type.
+type ConnectionInfo struct {
+	Address           string      `json:"address"`
+	AddressType       AddressType `json:"address_type"`
+	AvgDownload       uint64      `json:"avg_download"`
+	AvgUpload         uint64      `json:"avg_upload"`
+	ConnectionID      string      `json:"connection_id"`
+	CurrentDownload   uint64      `json:"current_download"`
+	CurrentUpload     uint64      `json:"current_upload"`
+	Height            uint64      `json:"height"`
+	Host              string      `json:"host"`
+	Incoming          bool        `json:"incoming"`
+	IP                string      `json:"ip"`
+	LiveTime          uint64      `json:"live_time"`
+	LocalIP           bool        `json:"local_ip"`
+	Localhost         bool        `json:"localhost"`
+	PeerID            string      `json:"peer_id"`
+	Port              string      `json:"port"`
+	PruningSeed       uint64      `json:"pruning_seed"`
+	RPCCreditsPerHash uint64      `json:"rpc_credits_per_hash"`
+	RPCPort           uint64      `json:"rpc_port"`
+	RecvCount         uint64      `json:"recv_count"`
+	RecvIdleTime      uint64      `json:"recv_idle_time"`
+	SendCount         uint64      `json:"send_count"`
+	SendIdleTime      uint64      `json:"send_idle_time"`
+	State             string      `json:"state"`
+	SupportFlags      uint64      `json:"support_flags"`
+}
+
 // GetConnectionsResult is the result of a call to the GetConnections RPC
 // method.
 type GetConnectionsResult struct {
-	Connections []struct {
-		Address         string `json:"address"`
-		AvgDownload     uint64 `json:"avg_download"`
-		AvgUpload       uint64 `json:"avg_upload"`
-		ConnectionID    string `json:"connection_id"`
-		CurrentDownload uint64 `json:"current_download"`
-		CurrentUpload   uint64 `json:"current_upload"`
-		Height          uint64 `json:"height"`
-		Host            string `json:"host"`
-		Incoming        bool   `json:"incoming"`
-		IP              string `json:"ip"`
-		LiveTime        uint64 `json:"live_time"`
-		LocalIP         bool   `json:"local_ip"`
-		Localhost       bool   `json:"localhost"`
-		PeerID          string `json:"peer_id"`
-		Port            string `json:"port"`
-		RecvCount       uint64 `json:"recv_count"`
-		RecvIdleTime    uint64 `json:"recv_idle_time"`
-		SendCount       uint64 `json:"send_count"`
-		SendIdleTime    uint64 `json:"send_idle_time"`
-		State           string `json:"state"`
-		SupportFlags    uint64 `json:"support_flags"`
-	} `json:"connections"`
+	Connections []ConnectionInfo `json:"connections"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -614,33 +642,7 @@ type SyncInfoResult struct {
 	TopHash               string `json:"top_hash"`
 	Untrusted             bool   `json:"untrusted"`
 	Peers                 []struct {
-		Info struct {
-			Address           string `json:"address"`
-			AddressType       uint64 `json:"address_type"`
-			AvgDownload       uint64 `json:"avg_download"`
-			AvgUpload         uint64 `json:"avg_upload"`
-			ConnectionID      string `json:"connection_id"`
-			CurrentDownload   uint64 `json:"current_download"`
-			CurrentUpload     uint64 `json:"current_upload"`
-			Height            uint64 `json:"height"`
-			Host              string `json:"host"`
-			IP                string `json:"ip"`
-			Incoming          bool   `json:"incoming"`
-			LiveTime          uint64 `json:"live_time"`
-			LocalIP           bool   `json:"local_ip"`
-			Localhost         bool   `json:"localhost"`
-			PeerID            string `json:"peer_id"`
-			Port              string `json:"port"`
-			PruningSeed       uint64 `json:"pruning_seed"`
-			RPCCreditsPerHash uint64 `json:"rpc_credits_per_hash"`
-			RPCPort           uint64 `json:"rpc_port"`
-			RecvCount         uint64 `json:"recv_count"`
-			RecvIdleTime      uint64 `json:"recv_idle_time"`
-			SendCount         uint64 `json:"send_count"`
-			SendIdleTime      uint64 `json:"send_idle_time"`
-			State             string `json:"state"`
-			SupportFlags      int    `json:"support_flags"`
-		} `json:"info"`
+		Info ConnectionInfo `json:"info"`
 	} `json:"peers"`
 
 	RPCResultFooter `json:",inline"`
