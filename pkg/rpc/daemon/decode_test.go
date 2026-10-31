@@ -497,7 +497,7 @@ func checkSyncInfo(t *testing.T, got any) {
 
 	info := res.Peers[0].Info
 	assert.Equal(t, "192.0.2.40:18080", info.Address)
-	assert.Equal(t, uint64(1), info.AddressType)
+	assert.Equal(t, daemon.AddressTypeIPv4, info.AddressType)
 	assert.Equal(t, "192.0.2.40", info.Host)
 	assert.Equal(t, "192.0.2.40", info.IP)
 	assert.Equal(t, "e1e1e1e1e1e1e1e1", info.PeerID)
@@ -506,7 +506,7 @@ func checkSyncInfo(t *testing.T, got any) {
 	assert.Equal(t, uint64(0), info.RPCCreditsPerHash)
 	assert.Equal(t, "normal", info.State)
 	assert.False(t, info.Incoming)
-	assert.Equal(t, 1, info.SupportFlags)
+	assert.Equal(t, uint64(1), info.SupportFlags)
 	assert.Equal(t, "OK", res.Status)
 	assert.False(t, res.Untrusted)
 }

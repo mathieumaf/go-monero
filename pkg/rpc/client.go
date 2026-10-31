@@ -40,12 +40,18 @@ type Client struct {
 	// endpoints.
 	//
 	address *url.URL
+
+	// retry, when set, decides whether a failed idempotent call is repeated.
+	// Nil keeps the historical single-attempt behavior.
+	//
+	retry RetryPolicy
 }
 
 // clientOptions is a set of options that can be overridden to tweak the
 // client's behavior.
 type clientOptions struct {
 	HTTPClient *http.Client
+	Retry      RetryPolicy
 }
 
 // ClientOption defines a functional option for overriding optional client
@@ -88,6 +94,7 @@ func NewClient(address string, opts ...ClientOption) (*Client, error) {
 	return &Client{
 		address: parsedAddress,
 		http:    options.HTTPClient,
+		retry:   options.Retry,
 	}, nil
 }
 
@@ -111,7 +118,17 @@ type RequestEnvelope struct {
 }
 
 // Request makes requests to any endpoints, not assuming any particular format.
+//
+// A non-2xx HTTP status is returned as an [*HTTPStatusError]. Transport
+// failures wrap the underlying error, so errors.Is matches context.Canceled
+// and context.DeadlineExceeded.
 func (c *Client) RawRequest(ctx context.Context, endpoint string, params interface{}, response interface{}) error {
+	return c.withRetry(ctx, func() error {
+		return c.doRawRequest(ctx, endpoint, params, response)
+	})
+}
+
+func (c *Client) doRawRequest(ctx context.Context, endpoint string, params interface{}, response interface{}) error {
 	address := *c.address
 	address.Path = endpoint
 
@@ -143,7 +160,17 @@ func (c *Client) RawRequest(ctx context.Context, endpoint string, params interfa
 // JSONRPC issues a request for a particular method under the JSONRPC endpoint
 // with the proper envolope for its requests and unwrapping of results for
 // responses.
+//
+// A JSON-RPC error object is returned as an [*RPCError]. A non-2xx HTTP
+// status is returned as an [*HTTPStatusError]. Transport failures wrap the
+// underlying error.
 func (c *Client) JSONRPC(ctx context.Context, method string, params interface{}, response interface{}) error {
+	return c.withRetry(ctx, func() error {
+		return c.doJSONRPC(ctx, method, params, response)
+	})
+}
+
+func (c *Client) doJSONRPC(ctx context.Context, method string, params interface{}, response interface{}) error {
 	address := *c.address
 	address.Path = endpointJSONRPC
 
@@ -173,10 +200,10 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 	}
 
 	if rpcResponseBody.Error.Code != 0 || rpcResponseBody.Error.Message != "" {
-		return fmt.Errorf("rpc error: code=%d message=%s",
-			rpcResponseBody.Error.Code,
-			rpcResponseBody.Error.Message,
-		)
+		return &RPCError{
+			Code:    rpcResponseBody.Error.Code,
+			Message: rpcResponseBody.Error.Message,
+		}
 	}
 
 	return nil
@@ -193,7 +220,7 @@ func (c *Client) submitRequest(req *http.Request, response interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("non-2xx status code: %d", resp.StatusCode)
+		return newHTTPStatusError(resp.StatusCode, resp.Body)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
