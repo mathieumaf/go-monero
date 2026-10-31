@@ -1,3 +1,6 @@
 package http
 
-var ParseChallenge = parseChallenge
+var (
+	ParseChallenge    = parseChallenge
+	ParseDigestParams = parseDigestParams
+)

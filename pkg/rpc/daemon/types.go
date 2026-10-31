@@ -177,12 +177,31 @@ type SetBansResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
+// Fee priority indexes into GetFeeEstimateResult.Fees. Monerod returns the
+// four tiers in this order.
+const (
+	// FeePrioritySlow is the slow fee tier.
+	FeePrioritySlow = 0
+	// FeePriorityNormal is the normal fee tier.
+	FeePriorityNormal = 1
+	// FeePriorityFast is the fast fee tier.
+	FeePriorityFast = 2
+	// FeePriorityFastest is the fastest fee tier.
+	FeePriorityFastest = 3
+)
+
 // GetFeeEstimateResult is the result of a call to the GetFeeEstimate RPC
 // method.
 type GetFeeEstimateResult struct {
-	// Fee is the per kB fee estimate.
+	// Fee is the per-byte fee estimate in atomic units.
 	//
 	Fee int `json:"fee"`
+
+	// Fees holds per-byte fees, in atomic units, for the slow, normal, fast,
+	// and fastest priorities. FeePrioritySlow and the following constants are
+	// the indexes.
+	//
+	Fees []uint64 `json:"fees"`
 
 	// QuantizationMask indicates that the  fee should be rounded up to an
 	// even multiple of this value.
@@ -289,32 +308,41 @@ type GetPeerListResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
+// ConnectionInfo is one P2P connection. get_connections returns these
+// directly, and sync_info nests one under each peer's info field. Field names
+// match monerod's connection_info. AddressType uses epee::net_utils::address_type.
+type ConnectionInfo struct {
+	Address           string      `json:"address"`
+	AddressType       AddressType `json:"address_type"`
+	AvgDownload       uint64      `json:"avg_download"`
+	AvgUpload         uint64      `json:"avg_upload"`
+	ConnectionID      string      `json:"connection_id"`
+	CurrentDownload   uint64      `json:"current_download"`
+	CurrentUpload     uint64      `json:"current_upload"`
+	Height            uint64      `json:"height"`
+	Host              string      `json:"host"`
+	Incoming          bool        `json:"incoming"`
+	IP                string      `json:"ip"`
+	LiveTime          uint64      `json:"live_time"`
+	LocalIP           bool        `json:"local_ip"`
+	Localhost         bool        `json:"localhost"`
+	PeerID            string      `json:"peer_id"`
+	Port              string      `json:"port"`
+	PruningSeed       uint64      `json:"pruning_seed"`
+	RPCCreditsPerHash uint64      `json:"rpc_credits_per_hash"`
+	RPCPort           uint64      `json:"rpc_port"`
+	RecvCount         uint64      `json:"recv_count"`
+	RecvIdleTime      uint64      `json:"recv_idle_time"`
+	SendCount         uint64      `json:"send_count"`
+	SendIdleTime      uint64      `json:"send_idle_time"`
+	State             string      `json:"state"`
+	SupportFlags      uint64      `json:"support_flags"`
+}
+
 // GetConnectionsResult is the result of a call to the GetConnections RPC
 // method.
 type GetConnectionsResult struct {
-	Connections []struct {
-		Address         string `json:"address"`
-		AvgDownload     uint64 `json:"avg_download"`
-		AvgUpload       uint64 `json:"avg_upload"`
-		ConnectionID    string `json:"connection_id"`
-		CurrentDownload uint64 `json:"current_download"`
-		CurrentUpload   uint64 `json:"current_upload"`
-		Height          uint64 `json:"height"`
-		Host            string `json:"host"`
-		Incoming        bool   `json:"incoming"`
-		IP              string `json:"ip"`
-		LiveTime        uint64 `json:"live_time"`
-		LocalIP         bool   `json:"local_ip"`
-		Localhost       bool   `json:"localhost"`
-		PeerID          string `json:"peer_id"`
-		Port            string `json:"port"`
-		RecvCount       uint64 `json:"recv_count"`
-		RecvIdleTime    uint64 `json:"recv_idle_time"`
-		SendCount       uint64 `json:"send_count"`
-		SendIdleTime    uint64 `json:"send_idle_time"`
-		State           string `json:"state"`
-		SupportFlags    uint64 `json:"support_flags"`
-	} `json:"connections"`
+	Connections []ConnectionInfo `json:"connections"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -614,33 +642,7 @@ type SyncInfoResult struct {
 	TopHash               string `json:"top_hash"`
 	Untrusted             bool   `json:"untrusted"`
 	Peers                 []struct {
-		Info struct {
-			Address           string `json:"address"`
-			AddressType       uint64 `json:"address_type"`
-			AvgDownload       uint64 `json:"avg_download"`
-			AvgUpload         uint64 `json:"avg_upload"`
-			ConnectionID      string `json:"connection_id"`
-			CurrentDownload   uint64 `json:"current_download"`
-			CurrentUpload     uint64 `json:"current_upload"`
-			Height            uint64 `json:"height"`
-			Host              string `json:"host"`
-			IP                string `json:"ip"`
-			Incoming          bool   `json:"incoming"`
-			LiveTime          uint64 `json:"live_time"`
-			LocalIP           bool   `json:"local_ip"`
-			Localhost         bool   `json:"localhost"`
-			PeerID            string `json:"peer_id"`
-			Port              string `json:"port"`
-			PruningSeed       uint64 `json:"pruning_seed"`
-			RPCCreditsPerHash uint64 `json:"rpc_credits_per_hash"`
-			RPCPort           uint64 `json:"rpc_port"`
-			RecvCount         uint64 `json:"recv_count"`
-			RecvIdleTime      uint64 `json:"recv_idle_time"`
-			SendCount         uint64 `json:"send_count"`
-			SendIdleTime      uint64 `json:"send_idle_time"`
-			State             string `json:"state"`
-			SupportFlags      int    `json:"support_flags"`
-		} `json:"info"`
+		Info ConnectionInfo `json:"info"`
 	} `json:"peers"`
 
 	RPCResultFooter `json:",inline"`
@@ -896,5 +898,123 @@ type StartMiningResult struct {
 }
 
 type StopMiningResult struct {
+	RPCResultFooter `json:",inline"`
+}
+
+// TxBacklogEntry is one decoded get_txpool_backlog record.
+type TxBacklogEntry struct {
+	Weight     uint64 `json:"weight"`
+	Fee        uint64 `json:"fee"`
+	TimeInPool uint64 `json:"time_in_pool"`
+}
+
+// GetTxpoolBacklogResult is the result of GetTxpoolBacklog.
+//
+// Backlog is the blob monerod embeds in the JSON result. Each record is
+// three little-endian uint64 values: weight, fee, and seconds in the pool.
+// Entries is the same blob decoded by this client.
+type GetTxpoolBacklogResult struct {
+	Backlog string           `json:"backlog,omitempty"`
+	Entries []TxBacklogEntry `json:"entries,omitempty"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// MinerTxBacklogEntry is one mineable pool transaction from get_miner_data.
+type MinerTxBacklogEntry struct {
+	ID     string `json:"id"`
+	Weight uint64 `json:"weight"`
+	Fee    uint64 `json:"fee"`
+}
+
+// GetMinerDataResult is the result of GetMinerData.
+type GetMinerDataResult struct {
+	MajorVersion          uint64                `json:"major_version"`
+	Height                uint64                `json:"height"`
+	PrevID                string                `json:"prev_id"`
+	SeedHash              string                `json:"seed_hash"`
+	Difficulty            string                `json:"difficulty"`
+	MedianWeight          uint64                `json:"median_weight"`
+	AlreadyGeneratedCoins uint64                `json:"already_generated_coins"`
+	TxBacklog             []MinerTxBacklogEntry `json:"tx_backlog"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// BannedResult is the result of Banned.
+type BannedResult struct {
+	Banned  bool   `json:"banned"`
+	Seconds uint64 `json:"seconds"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// FlushTxpoolResult is the result of FlushTxpool.
+type FlushTxpoolResult struct {
+	RPCResultFooter `json:",inline"`
+}
+
+// OutputHistogramEntry is one amount in a get_output_histogram result.
+type OutputHistogramEntry struct {
+	Amount            uint64 `json:"amount"`
+	TotalInstances    uint64 `json:"total_instances"`
+	UnlockedInstances uint64 `json:"unlocked_instances"`
+	RecentInstances   uint64 `json:"recent_instances"`
+}
+
+// GetOutputHistogramResult is the result of GetOutputHistogram.
+type GetOutputHistogramResult struct {
+	Histogram []OutputHistogramEntry `json:"histogram"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// OutputDistribution is the per-amount distribution from
+// get_output_distribution.
+type OutputDistribution struct {
+	Amount         uint64              `json:"amount"`
+	Base           uint64              `json:"base"`
+	StartHeight    uint64              `json:"start_height"`
+	Binary         bool                `json:"binary"`
+	Compress       bool                `json:"compress"`
+	CompressedData string              `json:"compressed_data,omitempty"`
+	Distribution   DistributionPayload `json:"distribution,omitempty"`
+}
+
+// GetOutputDistributionResult is the result of GetOutputDistribution.
+type GetOutputDistributionResult struct {
+	Distributions []OutputDistribution `json:"distributions"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// SubmitBlockResult is the result of SubmitBlock.
+type SubmitBlockResult struct {
+	BlockID string `json:"block_id"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// PruneBlockchainResult is the result of PruneBlockchain.
+type PruneBlockchainResult struct {
+	Pruned      bool   `json:"pruned"`
+	PruningSeed uint64 `json:"pruning_seed"`
+
+	RPCResultFooter `json:",inline"`
+}
+
+// FlushCacheResult is the result of FlushCache.
+type FlushCacheResult struct {
+	RPCResultFooter `json:",inline"`
+}
+
+// AddAuxPowResult is the result of AddAuxPow.
+type AddAuxPowResult struct {
+	BlocktemplateBlob string   `json:"blocktemplate_blob"`
+	BlockhashingBlob  string   `json:"blockhashing_blob"`
+	MerkleRoot        string   `json:"merkle_root"`
+	MerkleTreeDepth   uint64   `json:"merkle_tree_depth"`
+	AuxPow            []AuxPow `json:"aux_pow"`
+
 	RPCResultFooter `json:",inline"`
 }

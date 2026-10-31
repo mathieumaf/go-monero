@@ -1,0 +1,34 @@
+{
+  "credits": 0,
+  "pool_stats": {
+    "bytes_max": 14325,
+    "bytes_med": 2214,
+    "bytes_min": 1450,
+    "bytes_total": 28416,
+    "fee_total": 532080000,
+    "histo": [
+      {
+        "bytes": 1600,
+        "txs": 6
+      },
+      {
+        "bytes": 3200,
+        "txs": 4
+      },
+      {
+        "bytes": 6400,
+        "txs": 2
+      }
+    ],
+    "histo_98pc": 297,
+    "num_10m": 1,
+    "num_double_spends": 0,
+    "num_failing": 0,
+    "num_not_relayed": 0,
+    "oldest": 1737995000,
+    "txs_total": 12
+  },
+  "status": "OK",
+  "top_hash": "",
+  "untrusted": false
+}

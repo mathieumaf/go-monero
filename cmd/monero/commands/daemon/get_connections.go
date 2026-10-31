@@ -55,7 +55,7 @@ func (c *getConnectionsCommand) RunE(_ *cobra.Command, _ []string) error {
 func (c *getConnectionsCommand) pretty(v *daemon.GetConnectionsResult) {
 	table := display.NewTable()
 
-	table.AddRow("ADDR", "IN", "STATE", "HEIGHT", "SINCE", "RECV", "SEND")
+	table.AddRow("ADDR", "NET", "IN", "STATE", "HEIGHT", "RPC", "CREDITS", "PRUNE", "SINCE", "RECV", "SEND")
 
 	sort.Slice(v.Connections, func(i, j int) bool {
 		return v.Connections[i].LiveTime > v.Connections[j].LiveTime
@@ -63,9 +63,13 @@ func (c *getConnectionsCommand) pretty(v *daemon.GetConnectionsResult) {
 	for _, connection := range v.Connections {
 		table.AddRow(
 			connection.Address,
+			connection.AddressType.String(),
 			connection.Incoming,
 			connection.State,
 			connection.Height,
+			connection.RPCPort,
+			connection.RPCCreditsPerHash,
+			connection.PruningSeed,
 			humanize.Time(time.Now().Add(-1*time.Duration(connection.LiveTime)*time.Second)),
 			humanize.IBytes(connection.RecvCount),
 			humanize.IBytes(connection.SendCount),

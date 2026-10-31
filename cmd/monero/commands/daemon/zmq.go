@@ -23,6 +23,7 @@ var zmqTopics = []string{
 	string(zmq.TopicFullTxPoolAdd),
 	string(zmq.TopicMinimalChainMain),
 	string(zmq.TopicFullChainMain),
+	string(zmq.TopicFullMinerData),
 }
 
 func (c *zmqCommand) Cmd() *cobra.Command {
@@ -75,27 +76,44 @@ func (c *zmqCommand) RunE(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
+type zmqEvent struct {
+	tx   interface{}
+	err  error
+	stop bool
+}
+
+func nextZMQEvent(ctx context.Context, stream *zmq.Stream) zmqEvent {
+	select {
+	case err := <-stream.ErrC:
+		return zmqEvent{err: err, stop: true}
+	case <-ctx.Done():
+		return zmqEvent{err: ctx.Err(), stop: true}
+	case tx := <-stream.FullChainMainC:
+		return zmqEvent{tx: tx}
+	case tx := <-stream.FullMinerDataC:
+		return zmqEvent{tx: tx}
+	case tx := <-stream.FullTxPoolAddC:
+		return zmqEvent{tx: tx}
+	case tx := <-stream.MinimalChainMainC:
+		return zmqEvent{tx: tx}
+	case tx := <-stream.MinimalTxPoolAddC:
+		return zmqEvent{tx: tx}
+	}
+}
+
 func (c *zmqCommand) consumeStream(
 	ctx context.Context, stream *zmq.Stream,
 ) error {
 	for {
-		var tx interface{}
-
-		select {
-		case err := <-stream.ErrC:
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		case tx = <-stream.FullChainMainC:
-		case tx = <-stream.FullTxPoolAddC:
-		case tx = <-stream.MinimalChainMainC:
-		case tx = <-stream.MinimalTxPoolAddC:
+		ev := nextZMQEvent(ctx, stream)
+		if ev.stop {
+			return ev.err
 		}
-
-		if tx != nil {
-			if err := display.JSON(tx); err != nil {
-				return fmt.Errorf("display json: %w", err)
-			}
+		if ev.tx == nil {
+			continue
+		}
+		if err := display.JSON(ev.tx); err != nil {
+			return fmt.Errorf("display json: %w", err)
 		}
 	}
 }

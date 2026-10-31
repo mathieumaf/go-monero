@@ -13,18 +13,41 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
-// DigestAuthTransport is an implementation of http.RoundTripper that takes
-// care of http digest authentication.
+// md5Algorithm is the only digest algorithm this client implements.
+// RFC 7616 defaults a missing algorithm to MD5.
+const md5Algorithm = "MD5"
+
+// DigestAuthTransport is an http.RoundTripper that authenticates to monerod
+// with HTTP digest (--rpc-login).
+//
+// The first request to a host learns the challenge from a 401. Later requests
+// reuse that nonce with a fresh cnonce and a monotonically increasing nc, so
+// a steady-state call is one round trip. A 401, including one with stale=true,
+// replaces that nonce with the new challenge and retries the request once.
+//
+// nc is guarded by a mutex, so concurrent RoundTrip calls are safe.
 type DigestAuthTransport struct {
 	Username string
 	Password string
 	rt       http.RoundTripper
+
+	mu       sync.Mutex
+	sessions map[string]*digestSession
 }
 
-// NewDigestAuthTransport creates a new digest transport using the
-// http.DefaultTransport.
+// digestSession is the last challenge accepted for one host.
+// nc is the last nonce-count sent for that nonce.
+type digestSession struct {
+	challenge challenge
+	nc        int
+}
+
+// NewDigestAuthTransport returns a digest RoundTripper. rt is the transport
+// the digest headers are applied on top of; it must be safe for concurrent
+// use. http.DefaultTransport is the usual choice.
 func NewDigestAuthTransport(
 	username, password string, rt http.RoundTripper,
 ) *DigestAuthTransport {
@@ -32,18 +55,19 @@ func NewDigestAuthTransport(
 		Username: username,
 		Password: password,
 		rt:       rt,
+		sessions: make(map[string]*digestSession),
 	}
 }
 
 func (t *DigestAuthTransport) newCredentials(
-	req *http.Request, c *challenge,
+	req *http.Request, c *challenge, nc int,
 ) *credentials {
 	return &credentials{
 		Algorithm:  c.Algorithm,
 		DigestURI:  req.URL.RequestURI(),
 		MessageQop: c.Qop, // "auth" must be a single value
 		Nonce:      c.Nonce,
-		NonceCount: 0,
+		NonceCount: nc,
 		Opaque:     c.Opaque,
 		Realm:      c.Realm,
 		Username:   t.Username,
@@ -53,58 +77,250 @@ func (t *DigestAuthTransport) newCredentials(
 	}
 }
 
-// RoundTrip makes a request expecting a 401 response that will require digest
-// authentication. It creates the credentials it needs and makes a follow-up
-// request.
+// RoundTrip performs req, adding digest credentials when the server asks
+// for them. See DigestAuthTransport for nonce reuse and the 401 retry.
 func (t *DigestAuthTransport) RoundTrip(
 	req *http.Request,
 ) (*http.Response, error) {
-	finalRequest := req.Clone(req.Context())
-
-	if req.Body != nil {
-		bodyContents, err := io.ReadAll(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("read all body: %w", err)
-		}
-
-		reqBody01 := io.NopCloser(bytes.NewBuffer(bodyContents))
-		reqBody02 := io.NopCloser(bytes.NewBuffer(bodyContents))
-
-		req.Body = reqBody01
-		finalRequest.Body = reqBody02
+	replay, err := newRequestReplay(req)
+	if err != nil {
+		return nil, err
 	}
 
-	// make a request to get the 401 that contains the challenge.
-	//
+	host := requestHost(req)
+	resp, err := t.sendInitial(replay, host)
+	if err != nil || resp.StatusCode != http.StatusUnauthorized {
+		return resp, err
+	}
+	if err := discardBody(resp); err != nil {
+		return nil, err
+	}
+
+	return t.retryUnauthorized(replay, host, resp)
+}
+
+func (t *DigestAuthTransport) sendInitial(
+	replay *requestReplay, host string,
+) (*http.Response, error) {
+	chal, nc, ok := t.reserve(host)
+	if !ok {
+		return t.send(replay)
+	}
+
+	return t.sendAuthorized(replay, chal, nc)
+}
+
+// retryUnauthorized answers one 401. stale=true and any other 401 both
+// adopt the challenge from that response and are not retried again.
+func (t *DigestAuthTransport) retryUnauthorized(
+	replay *requestReplay, host string, challengeResp *http.Response,
+) (*http.Response, error) {
+	chal, err := parseWWWAuthenticate(challengeResp.Header)
+	if err != nil {
+		// The cached nonce was rejected and there is nothing to retry with.
+		t.invalidateHost(host)
+		return nil, fmt.Errorf("parse challenge: %w", err)
+	}
+
+	nc := t.adopt(host, chal)
+	resp, err := t.sendAuthorized(replay, chal, nc)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		t.invalidate(host, chal.Nonce)
+	}
+
+	return resp, nil
+}
+
+func (t *DigestAuthTransport) send(
+	replay *requestReplay,
+) (*http.Response, error) {
+	req, err := replay.clone()
+	if err != nil {
+		return nil, err
+	}
+
+	return t.roundTrip(req)
+}
+
+func (t *DigestAuthTransport) sendAuthorized(
+	replay *requestReplay, chal *challenge, nc int,
+) (*http.Response, error) {
+	req, err := replay.clone()
+	if err != nil {
+		return nil, err
+	}
+	if err := t.applyAuth(req, chal, nc); err != nil {
+		return nil, err
+	}
+
+	return t.roundTrip(req)
+}
+
+func (t *DigestAuthTransport) applyAuth(
+	req *http.Request, chal *challenge, nc int,
+) error {
+	header, err := t.newCredentials(req, chal, nc).authorize()
+	if err != nil {
+		return fmt.Errorf("authorize: %w", err)
+	}
+	req.Header.Set("Authorization", header)
+
+	return nil
+}
+
+func (t *DigestAuthTransport) roundTrip(
+	req *http.Request,
+) (*http.Response, error) {
 	resp, err := t.rt.RoundTrip(req)
 	if err != nil {
 		return nil, fmt.Errorf("round trip err: %w", err)
 	}
-	if resp.StatusCode != 401 { // cool, reached what we needed
-		return resp, nil
+
+	return resp, nil
+}
+
+// reserve takes the next nc for a cached nonce. The bool is false when this
+// host has no challenge yet.
+func (t *DigestAuthTransport) reserve(host string) (*challenge, int, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	session, ok := t.sessions[host]
+	if !ok {
+		return nil, 0, false
 	}
 
-	// we must ensure that the initial response has been totally drained
-	// otherwise the http client won't reuse the connection.
-	//
-	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		return nil, fmt.Errorf("copy body to null dev: %w", err)
-	}
-	resp.Body.Close()
+	session.nc++
+	copied := session.challenge
+	return &copied, session.nc, true
+}
 
-	chal, err := parseChallenge(resp.Header.Get("WWW-Authenticate"))
+// adopt stores chal and returns the nc to send. A new nonce starts at 1.
+// The same nonce, including one seen concurrently, keeps increasing nc.
+func (t *DigestAuthTransport) adopt(host string, chal *challenge) int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.sessions == nil {
+		t.sessions = make(map[string]*digestSession)
+	}
+
+	session, ok := t.sessions[host]
+	if !ok || session.challenge.Nonce != chal.Nonce {
+		t.sessions[host] = &digestSession{challenge: *chal, nc: 1}
+		return 1
+	}
+
+	session.nc++
+	session.challenge = *chal
+	return session.nc
+}
+
+func (t *DigestAuthTransport) invalidate(host, nonce string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	session, ok := t.sessions[host]
+	if ok && session.challenge.Nonce == nonce {
+		delete(t.sessions, host)
+	}
+}
+
+func (t *DigestAuthTransport) invalidateHost(host string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.sessions, host)
+}
+
+func requestHost(req *http.Request) string {
+	if req.URL == nil {
+		return req.Host
+	}
+
+	host := req.URL.Host
+	if host == "" {
+		host = req.Host
+	}
+
+	return req.URL.Scheme + "://" + host
+}
+
+// requestReplay clones req, including its body, once per attempt.
+// GetBody is used when the caller set it; otherwise the body is buffered.
+type requestReplay struct {
+	proto   *http.Request
+	getBody func() (io.ReadCloser, error)
+	length  int64
+	hasBody bool
+}
+
+func newRequestReplay(req *http.Request) (*requestReplay, error) {
+	replay := &requestReplay{proto: req, length: req.ContentLength}
+	if req.Body == nil || req.Body == http.NoBody {
+		return replay, nil
+	}
+
+	replay.hasBody = true
+	if req.GetBody != nil {
+		replay.getBody = req.GetBody
+		if err := req.Body.Close(); err != nil {
+			return nil, fmt.Errorf("close body: %w", err)
+		}
+
+		return replay, nil
+	}
+
+	data, err := io.ReadAll(req.Body)
 	if err != nil {
-		return nil, fmt.Errorf("parse challenge: %w", err)
+		return nil, fmt.Errorf("read all body: %w", err)
+	}
+	if err := req.Body.Close(); err != nil {
+		return nil, fmt.Errorf("close body: %w", err)
 	}
 
-	cr := t.newCredentials(finalRequest, chal)
-	auth, err := cr.authorize()
+	replay.length = int64(len(data))
+	replay.getBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(data)), nil
+	}
+
+	return replay, nil
+}
+
+func (r *requestReplay) clone() (*http.Request, error) {
+	clone := r.proto.Clone(r.proto.Context())
+	if !r.hasBody {
+		return clone, nil
+	}
+
+	body, err := r.getBody()
 	if err != nil {
-		return nil, fmt.Errorf("authorize: %w", err)
+		return nil, fmt.Errorf("get body: %w", err)
+	}
+	clone.Body = body
+	clone.GetBody = r.getBody
+	clone.ContentLength = r.length
+
+	return clone, nil
+}
+
+func discardBody(resp *http.Response) error {
+	if resp.Body == nil {
+		return nil
 	}
 
-	finalRequest.Header.Set("Authorization", auth)
-	return t.rt.RoundTrip(finalRequest)
+	_, err := io.Copy(io.Discard, resp.Body)
+	closeErr := resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("copy body to null dev: %w", err)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close body: %w", closeErr)
+	}
+
+	return nil
 }
 
 type challenge struct {
@@ -117,62 +333,252 @@ type challenge struct {
 	Qop       string
 }
 
-func parseChallenge(input string) (*challenge, error) {
-	const quotation = `"`
+// parseWWWAuthenticate selects the first Digest challenge this client can
+// satisfy. monerod advertises MD5 and MD5-sess as separate header values;
+// unsupported schemes and algorithms are skipped when another challenge
+// works.
+func parseWWWAuthenticate(header http.Header) (*challenge, error) {
+	values := header.Values("WWW-Authenticate")
+	if len(values) == 0 {
+		return nil, fmt.Errorf("missing WWW-Authenticate header")
+	}
 
-	fields, err := parseChallengeFields(input)
+	var firstErr error
+	for _, value := range values {
+		chal, err := parseChallenge(value)
+		if err == nil {
+			return chal, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	return nil, firstErr
+}
+
+// parseChallenge reads one WWW-Authenticate Digest challenge.
+//
+// Parameters may appear in any order and in any number. Unknown parameters
+// are ignored. qop may be a list; auth is selected when it is offered.
+// algorithm is optional, defaults to MD5, and is compared case-insensitively.
+func parseChallenge(input string) (*challenge, error) {
+	params, err := parseDigestParams(input)
 	if err != nil {
 		return nil, fmt.Errorf("parse challenge fields: %w", err)
 	}
 
-	c := &challenge{}
-	for _, field := range fields {
-		kv := strings.SplitN(field, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("split: expected to 2 parts "+
-				"in entry, got %d. field: '%s'",
-				len(kv), field)
-		}
+	c := &challenge{Algorithm: md5Algorithm}
+	for key, value := range params {
+		applyChallengeParam(c, key, value)
+	}
 
-		key, value := kv[0], kv[1]
-		value = strings.Trim(value, quotation)
-		switch key {
-		case "qop":
-			c.Qop = value
-		case "algorithm":
-			c.Algorithm = value
-		case "realm":
-			c.Realm = value
-		case "nonce":
-			c.Nonce = value
-		case "stale":
-			c.Stale = value
-		default:
-			return nil, fmt.Errorf("unknown field '%s'", key)
-		}
+	if err := validateChallenge(c); err != nil {
+		return nil, err
 	}
 
 	return c, nil
 }
 
-func parseChallengeFields(str string) ([]string, error) {
-	const challengePrefix = "Digest "
-	const whitespaceDelimiters = " \n\r\t"
+func applyChallengeParam(c *challenge, key, value string) {
+	switch key {
+	case "realm":
+		c.Realm = value
+	case "domain":
+		c.Domain = value
+	case "nonce":
+		c.Nonce = value
+	case "opaque":
+		c.Opaque = value
+	case "stale":
+		c.Stale = value
+	case "algorithm":
+		c.Algorithm = value
+	case "qop":
+		c.Qop = value
+	}
+}
 
-	str = strings.Trim(str, whitespaceDelimiters)
-	if !strings.HasPrefix(str, challengePrefix) {
-		return nil, fmt.Errorf("bad challenge: "+
-			"input doesn't start with '%s'", challengePrefix)
+func validateChallenge(c *challenge) error {
+	if c.Realm == "" {
+		return fmt.Errorf("challenge missing realm")
+	}
+	if c.Nonce == "" {
+		return fmt.Errorf("challenge missing nonce")
 	}
 
-	str = strings.Trim(str[len(challengePrefix):], whitespaceDelimiters)
-	fields := strings.Split(str, ",")
-	if len(fields) != 5 {
-		return nil, fmt.Errorf("split: expected 5 fields, got %d",
-			len(fields))
+	algo, err := normalizeAlgorithm(c.Algorithm)
+	if err != nil {
+		return err
+	}
+	c.Algorithm = algo
+
+	qop, err := selectQop(c.Qop)
+	if err != nil {
+		return err
+	}
+	c.Qop = qop
+
+	return nil
+}
+
+func normalizeAlgorithm(raw string) (string, error) {
+	if raw == "" || strings.EqualFold(raw, md5Algorithm) {
+		return md5Algorithm, nil
 	}
 
-	return fields, nil
+	return "", fmt.Errorf("unsupported algorithm '%s'", raw)
+}
+
+// selectQop picks auth from a qop list. auth-int is not implemented.
+func selectQop(raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return "", fmt.Errorf("challenge missing qop")
+	}
+
+	for _, part := range strings.Split(raw, ",") {
+		if strings.EqualFold(strings.TrimSpace(part), "auth") {
+			return "auth", nil
+		}
+	}
+
+	return "", fmt.Errorf("qop '%s' does not offer auth", raw)
+}
+
+func parseDigestParams(input string) (map[string]string, error) {
+	rest, err := stripDigestPrefix(input)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make(map[string]string)
+	for rest != "" {
+		var key, value string
+		key, value, rest, err = readDigestParam(rest)
+		if err != nil {
+			return nil, err
+		}
+		params[strings.ToLower(strings.TrimSpace(key))] = value
+		rest = strings.TrimLeft(rest, " \t\r\n,")
+	}
+
+	if len(params) == 0 {
+		return nil, fmt.Errorf("challenge has no parameters")
+	}
+
+	return params, nil
+}
+
+func stripDigestPrefix(input string) (string, error) {
+	const prefix = "digest"
+
+	s := strings.TrimSpace(input)
+	if len(s) < len(prefix) || !strings.EqualFold(s[:len(prefix)], prefix) {
+		return "", fmt.Errorf("bad challenge: input doesn't start with 'Digest'")
+	}
+
+	rest := s[len(prefix):]
+	if rest != "" && !isDigestDelim(rest[0]) {
+		return "", fmt.Errorf("bad challenge: input doesn't start with 'Digest'")
+	}
+
+	return strings.TrimLeft(rest, " \t\r\n,"), nil
+}
+
+func isDigestDelim(b byte) bool {
+	switch b {
+	case ' ', '\t', '\r', '\n', ',':
+		return true
+	default:
+		return false
+	}
+}
+
+func readDigestParam(s string) (key, value, rest string, err error) {
+	key, rest, err = readDigestKey(s)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	if strings.HasPrefix(rest, `"`) {
+		value, rest, err = readQuotedDigestValue(rest)
+		return key, value, rest, err
+	}
+
+	value, rest = readTokenDigestValue(rest)
+	return key, value, rest, nil
+}
+
+func readDigestKey(s string) (string, string, error) {
+	key, rest, ok := strings.Cut(s, "=")
+	if !ok {
+		return "", "", fmt.Errorf("challenge parameter missing '=': '%s'",
+			truncate(s))
+	}
+
+	key = strings.TrimSpace(key)
+	if key == "" || strings.ContainsAny(key, " \t\",") {
+		return "", "", fmt.Errorf("invalid challenge parameter '%s'", key)
+	}
+
+	rest = strings.TrimLeft(rest, " \t")
+	if rest == "" {
+		return "", "", fmt.Errorf("challenge parameter '%s' missing value", key)
+	}
+
+	return key, rest, nil
+}
+
+func readQuotedDigestValue(rest string) (string, string, error) {
+	value, next, err := unquoteDigest(rest)
+	if err != nil {
+		return "", "", err
+	}
+
+	next = strings.TrimLeft(next, " \t")
+	if next != "" && next[0] != ',' {
+		return "", "", fmt.Errorf("quoted challenge value has trailing data")
+	}
+
+	return value, next, nil
+}
+
+func readTokenDigestValue(rest string) (string, string) {
+	end := strings.IndexByte(rest, ',')
+	if end < 0 {
+		return strings.TrimSpace(rest), ""
+	}
+
+	return strings.TrimSpace(rest[:end]), rest[end:]
+}
+
+func unquoteDigest(s string) (string, string, error) {
+	var b strings.Builder
+	for i := 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			if i+1 >= len(s) {
+				return "", "", fmt.Errorf("unterminated escape in challenge")
+			}
+			i++
+			b.WriteByte(s[i])
+		case '"':
+			return b.String(), s[i+1:], nil
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+
+	return "", "", fmt.Errorf("unterminated quoted string in challenge")
+}
+
+func truncate(s string) string {
+	const maxLen = 40
+	if len(s) <= maxLen {
+		return s
+	}
+
+	return s[:maxLen] + "..."
 }
 
 type credentials struct {
@@ -199,8 +605,8 @@ func (c *credentials) ha2() string {
 }
 
 func (c *credentials) resp() (string, error) {
-	c.NonceCount++
-
+	// NonceCount is the nc value to send. The transport assigns it so
+	// concurrent requests never reuse a count for the same nonce.
 	if c.MessageQop != "auth" {
 		return "", fmt.Errorf("unexpected messageqop '%s'",
 			c.MessageQop)
@@ -222,7 +628,7 @@ func (c *credentials) resp() (string, error) {
 func (c *credentials) authorize() (string, error) {
 	// Note that this is only implemented for MD5 and NOT MD5-sess.
 	// MD5-sess is rarely supported and those that do are a big mess.
-	if c.Algorithm != "MD5" {
+	if c.Algorithm != md5Algorithm {
 		return "", fmt.Errorf("unsupported algorithm '%s'",
 			c.Algorithm)
 	}
