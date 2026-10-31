@@ -1,0 +1,9 @@
+{
+  "start_time": 1737000000,
+  "status": "OK",
+  "total_bytes_in": 3743474809,
+  "total_bytes_out": 5932012405,
+  "total_packets_in": 2130592,
+  "total_packets_out": 1010674,
+  "untrusted": false
+}

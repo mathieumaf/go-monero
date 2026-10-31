@@ -1,0 +1,45 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "credits": 0,
+    "height": 3201506,
+    "next_needed_pruning_seed": 0,
+    "overview": "[]",
+    "peers": [
+      {
+        "info": {
+          "address": "192.0.2.40:18080",
+          "avg_download": 2048,
+          "avg_upload": 2048,
+          "connection_id": "c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4",
+          "current_download": 1024,
+          "current_upload": 1024,
+          "height": 3201506,
+          "host": "192.0.2.40",
+          "incoming": false,
+          "ip": "192.0.2.40",
+          "live_time": 86400,
+          "local_ip": false,
+          "localhost": false,
+          "peer_id": "e1e1e1e1e1e1e1e1",
+          "port": "18080",
+          "recv_count": 4680,
+          "recv_idle_time": 4,
+          "send_count": 15434,
+          "send_idle_time": 3,
+          "state": "normal",
+          "support_flags": 1,
+          "address_type": 1,
+          "pruning_seed": 387,
+          "rpc_credits_per_hash": 0,
+          "rpc_port": 18089
+        }
+      }
+    ],
+    "status": "OK",
+    "target_height": 3201500,
+    "top_hash": "",
+    "untrusted": false
+  }
+}

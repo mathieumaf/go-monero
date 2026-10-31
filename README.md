@@ -306,6 +306,22 @@ func ExampleGetHeight() {
 }
 ```
 
+## Daemon RPC fixtures
+
+Decoding tests for `pkg/rpc/daemon` load anonymized monerod 0.18.x responses
+from `pkg/rpc/daemon/testdata`. Refresh a fixture from a node you control:
+
+1. Call the endpoint on local monerod 0.18.x. `get_connections`,
+   `get_peer_list`, `get_bans`, and `sync_info` are unrestricted RPC methods,
+   so capture them on a node you administer.
+2. Replace every IP, hostname, peer id, connection id, and hash with synthetic
+   values before committing. Use `192.0.2.0/24`, `198.51.100.0/24`, and
+   `203.0.113.0/24` for IPv4. Leave wallet files, RPC credentials, and node
+   logs out of the fixture.
+3. The tests decode each fixture with `json.Decoder.DisallowUnknownFields`.
+   A key that the Go result type does not map fails the test. Map that field
+   on the result type, or remove the key, in the same change.
+
 ## License
 
 See [LICENSE](./LICENSE).
