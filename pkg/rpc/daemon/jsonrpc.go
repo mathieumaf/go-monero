@@ -28,6 +28,17 @@ const (
 	methodRelayTx                = "relay_tx"
 	methodSetBans                = "set_bans"
 	methodSyncInfo               = "sync_info"
+	methodAddAuxPow              = "add_aux_pow"
+	methodBanned                 = "banned"
+	methodCalcPow                = "calc_pow"
+	methodFlushCache             = "flush_cache"
+	methodFlushTxpool            = "flush_txpool"
+	methodGetMinerData           = "get_miner_data"
+	methodGetOutputDistribution  = "get_output_distribution"
+	methodGetOutputHistogram     = "get_output_histogram"
+	methodGetTxpoolBacklog       = "get_txpool_backlog"
+	methodPruneBlockchain        = "prune_blockchain"
+	methodSubmitBlock            = "submit_block"
 )
 
 // GetAlternateChains displays alternative chains seen by the node.
@@ -394,6 +405,295 @@ func (c *Client) SyncInfo(ctx context.Context) (*SyncInfoResult, error) {
 	resp := &SyncInfoResult{}
 
 	err := c.JSONRPC(ctx, methodSyncInfo, nil, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// GetTxpoolBacklog returns every transaction-pool entry as packed weight,
+// fee, and time-in-pool records.
+//
+// On a restricted RPC port, monerod still serves this method and reports
+// time_in_pool as 0.
+func (c *Client) GetTxpoolBacklog(
+	ctx context.Context,
+) (*GetTxpoolBacklogResult, error) {
+	resp := &GetTxpoolBacklogResult{}
+
+	err := c.JSONRPC(ctx, methodGetTxpoolBacklog, nil, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// GetMinerData returns the template fields p2pool and other miners need:
+// version, height, previous id, seed hash, difficulty, median weight, coins
+// already generated, and the mineable transaction backlog.
+func (c *Client) GetMinerData(ctx context.Context) (*GetMinerDataResult, error) {
+	resp := &GetMinerDataResult{}
+
+	err := c.JSONRPC(ctx, methodGetMinerData, nil, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// BannedRequestParameters is the input for Banned.
+type BannedRequestParameters struct {
+	// Address is the host or IP address to look up.
+	Address string `json:"address"`
+}
+
+// Banned reports whether the daemon currently bans address, and for how
+// many seconds the ban remains.
+//
+// (restricted).
+func (c *Client) Banned(
+	ctx context.Context, params BannedRequestParameters,
+) (*BannedResult, error) {
+	resp := &BannedResult{}
+
+	err := c.JSONRPC(ctx, methodBanned, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// FlushTxpoolRequestParameters is the input for FlushTxpool.
+type FlushTxpoolRequestParameters struct {
+	// Txids lists transactions to drop. An empty list drops every
+	// transaction in the pool.
+	Txids []string `json:"txids"`
+}
+
+// FlushTxpool drops transactions from the daemon pool.
+//
+// This call changes daemon state. An empty Txids list removes the whole
+// pool.
+//
+// (restricted).
+func (c *Client) FlushTxpool(
+	ctx context.Context, params FlushTxpoolRequestParameters,
+) (*FlushTxpoolResult, error) {
+	if params.Txids == nil {
+		params.Txids = []string{}
+	}
+
+	resp := &FlushTxpoolResult{}
+
+	err := c.JSONRPC(ctx, methodFlushTxpool, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// GetOutputHistogramRequestParameters is the input for GetOutputHistogram.
+type GetOutputHistogramRequestParameters struct {
+	Amounts      []uint64 `json:"amounts,omitempty"`
+	MinCount     uint64   `json:"min_count,omitempty"`
+	MaxCount     uint64   `json:"max_count,omitempty"`
+	Unlocked     bool     `json:"unlocked,omitempty"`
+	RecentCutoff uint64   `json:"recent_cutoff,omitempty"`
+}
+
+// GetOutputHistogram returns how many outputs exist for the requested
+// amounts. RingCT outputs are amount 0.
+func (c *Client) GetOutputHistogram(
+	ctx context.Context, params GetOutputHistogramRequestParameters,
+) (*GetOutputHistogramResult, error) {
+	resp := &GetOutputHistogramResult{}
+
+	err := c.JSONRPC(ctx, methodGetOutputHistogram, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// GetOutputDistributionRequestParameters is the input for
+// GetOutputDistribution.
+type GetOutputDistributionRequestParameters struct {
+	// Amounts are the cleartext amounts to tally. 0 selects RingCT outputs.
+	Amounts []uint64 `json:"amounts"`
+
+	// Cumulative includes every earlier output of that amount in each count.
+	Cumulative bool `json:"cumulative"`
+
+	// FromHeight is the first block height to include.
+	FromHeight uint64 `json:"from_height"`
+
+	// ToHeight is the last block height to include. 0 means through the tip.
+	ToHeight uint64 `json:"to_height"`
+
+	// Binary asks for monerod's packed little-endian blob instead of a JSON
+	// array. Monerod defaults this to true. The zero value sends false so
+	// the response is a JSON array.
+	Binary bool `json:"binary"`
+
+	// Compress selects monerod's compressed integer encoding. Monerod
+	// ignores it when Binary is false. Counts does not expand compressed
+	// payloads.
+	Compress bool `json:"compress"`
+}
+
+// GetOutputDistribution returns per-block output counts for the given
+// amounts.
+//
+// On a restricted RPC port, monerod only accepts Amounts equal to []uint64{0}.
+func (c *Client) GetOutputDistribution(
+	ctx context.Context, params GetOutputDistributionRequestParameters,
+) (*GetOutputDistributionResult, error) {
+	if params.Amounts == nil {
+		params.Amounts = []uint64{}
+	}
+
+	resp := &GetOutputDistributionResult{}
+
+	err := c.JSONRPC(ctx, methodGetOutputDistribution, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// SubmitBlockRequest is the JSON-RPC params array of mined block blobs.
+type SubmitBlockRequest []string
+
+// SubmitBlock submits mined block blobs to the daemon.
+//
+// This call changes daemon and network state when a blob is accepted.
+func (c *Client) SubmitBlock(
+	ctx context.Context, blobs SubmitBlockRequest,
+) (*SubmitBlockResult, error) {
+	if blobs == nil {
+		blobs = SubmitBlockRequest{}
+	}
+
+	resp := &SubmitBlockResult{}
+
+	err := c.JSONRPC(ctx, methodSubmitBlock, blobs, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// PruneBlockchainRequestParameters is the input for PruneBlockchain.
+type PruneBlockchainRequestParameters struct {
+	// Check reports pruning status and does not delete data when true.
+	// False prunes the blockchain and changes daemon state.
+	Check bool `json:"check"`
+}
+
+// PruneBlockchain prunes historical transaction data, or reports whether
+// the chain is already pruned.
+//
+// This call changes daemon state unless Check is true.
+//
+// (restricted).
+func (c *Client) PruneBlockchain(
+	ctx context.Context, params PruneBlockchainRequestParameters,
+) (*PruneBlockchainResult, error) {
+	resp := &PruneBlockchainResult{}
+
+	err := c.JSONRPC(ctx, methodPruneBlockchain, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// CalcPowRequestParameters is the input for CalcPow.
+type CalcPowRequestParameters struct {
+	MajorVersion uint8  `json:"major_version"`
+	Height       uint64 `json:"height"`
+	BlockBlob    string `json:"block_blob"`
+	SeedHash     string `json:"seed_hash"`
+}
+
+// CalcPow asks the daemon for the proof-of-work hash of a block candidate.
+// The JSON-RPC result is the hex hash itself.
+//
+// (restricted).
+func (c *Client) CalcPow(
+	ctx context.Context, params CalcPowRequestParameters,
+) (string, error) {
+	var resp string
+
+	err := c.JSONRPC(ctx, methodCalcPow, params, &resp)
+	if err != nil {
+		return "", fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// FlushCacheRequestParameters is the input for FlushCache.
+type FlushCacheRequestParameters struct {
+	// BadBlocks drops the invalid-block cache when true. False leaves that
+	// cache in place. monerod 0.18 does not accept a separate bad-tx flag.
+	BadBlocks bool `json:"bad_blocks"`
+}
+
+// FlushCache drops the daemon's cached invalid blocks when requested.
+//
+// This call changes daemon state when BadBlocks is true. When BadBlocks is
+// false, monerod 0.18 leaves the cache unchanged and still returns status OK.
+//
+// (restricted).
+func (c *Client) FlushCache(
+	ctx context.Context, params FlushCacheRequestParameters,
+) (*FlushCacheResult, error) {
+	resp := &FlushCacheResult{}
+
+	err := c.JSONRPC(ctx, methodFlushCache, params, resp)
+	if err != nil {
+		return nil, fmt.Errorf("jsonrpc: %w", err)
+	}
+
+	return resp, nil
+}
+
+// AuxPow is one auxiliary chain's id and hash for merge mining.
+type AuxPow struct {
+	ID   string `json:"id"`
+	Hash string `json:"hash"`
+}
+
+// AddAuxPowRequestParameters is the input for AddAuxPow.
+type AddAuxPowRequestParameters struct {
+	BlocktemplateBlob string   `json:"blocktemplate_blob"`
+	AuxPow            []AuxPow `json:"aux_pow"`
+}
+
+// AddAuxPow folds auxiliary proof-of-work hashes into a block template so
+// the template can be merge-mined. The daemon returns the updated blobs and
+// the aux merkle root. Submitting the resulting block later is what changes
+// chain state.
+func (c *Client) AddAuxPow(
+	ctx context.Context, params AddAuxPowRequestParameters,
+) (*AddAuxPowResult, error) {
+	if params.AuxPow == nil {
+		params.AuxPow = []AuxPow{}
+	}
+
+	resp := &AddAuxPowResult{}
+
+	err := c.JSONRPC(ctx, methodAddAuxPow, params, resp)
 	if err != nil {
 		return nil, fmt.Errorf("jsonrpc: %w", err)
 	}
