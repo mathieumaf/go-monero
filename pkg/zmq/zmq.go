@@ -39,6 +39,7 @@ type Stream struct {
 	ErrC chan error
 
 	FullChainMainC    chan *FullChainMain
+	FullMinerDataC    chan *FullMinerData
 	FullTxPoolAddC    chan *FullTxPoolAdd
 	MinimalChainMainC chan *MinimalChainMain
 	MinimalTxPoolAddC chan *MinimalTxPoolAdd
@@ -57,6 +58,7 @@ func (c *Client) Listen(ctx context.Context) (*Stream, error) {
 		ErrC: make(chan error),
 
 		FullChainMainC:    make(chan *FullChainMain),
+		FullMinerDataC:    make(chan *FullMinerData),
 		FullTxPoolAddC:    make(chan *FullTxPoolAdd),
 		MinimalChainMainC: make(chan *MinimalChainMain),
 		MinimalTxPoolAddC: make(chan *MinimalTxPoolAdd),
@@ -70,6 +72,7 @@ func (c *Client) Listen(ctx context.Context) (*Stream, error) {
 		close(stream.ErrC)
 
 		close(stream.FullChainMainC)
+		close(stream.FullMinerDataC)
 		close(stream.FullTxPoolAddC)
 		close(stream.MinimalChainMainC)
 		close(stream.MinimalTxPoolAddC)
@@ -133,6 +136,8 @@ func (c *Client) ingestFrameArray(stream *Stream, frame []byte) error {
 	switch c.topic {
 	case TopicFullChainMain:
 		return c.transmitFullChainMain(stream, gson)
+	case TopicFullMinerData:
+		return c.transmitFullMinerData(stream, gson)
 	case TopicFullTxPoolAdd:
 		return c.transmitFullTxPoolAdd(stream, gson)
 	case TopicMinimalChainMain:
@@ -154,6 +159,16 @@ func (c *Client) transmitFullChainMain(stream *Stream, gson []byte) error {
 		stream.FullChainMainC <- element
 	}
 
+	return nil
+}
+
+func (c *Client) transmitFullMinerData(stream *Stream, gson []byte) error {
+	element := &FullMinerData{}
+
+	if err := json.Unmarshal(gson, element); err != nil {
+		return fmt.Errorf("unmarshal: %w", err)
+	}
+	stream.FullMinerDataC <- element
 	return nil
 }
 
@@ -209,6 +224,8 @@ func jsonFromFrame(frame []byte) (Topic, []byte, error) {
 		return TopicMinimalChainMain, gson, nil
 	case string(TopicFullChainMain):
 		return TopicFullChainMain, gson, nil
+	case string(TopicFullMinerData):
+		return TopicFullMinerData, gson, nil
 	case string(TopicFullTxPoolAdd):
 		return TopicFullTxPoolAdd, gson, nil
 	case string(TopicMinimalTxPoolAdd):
