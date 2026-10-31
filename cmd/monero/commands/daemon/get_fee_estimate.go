@@ -18,7 +18,7 @@ type getFeeEstimateCommand struct {
 func (c *getFeeEstimateCommand) Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-fee-estimate",
-		Short: "estimate fees in atomic units per kB",
+		Short: "estimate fees in atomic units per byte",
 		RunE:  c.RunE,
 	}
 
@@ -56,7 +56,17 @@ func (c *getFeeEstimateCommand) RunE(_ *cobra.Command, _ []string) error {
 func (c *getFeeEstimateCommand) pretty(v *daemon.GetFeeEstimateResult) {
 	table := display.NewTable()
 
-	table.AddRow("Fee:", v.Fee)
+	table.AddRow("Fee per byte:", v.Fee)
+
+	labels := []string{"Slow:", "Normal:", "Fast:", "Fastest:"}
+	for i, fee := range v.Fees {
+		label := fmt.Sprintf("Priority %d:", i)
+		if i < len(labels) {
+			label = labels[i]
+		}
+		table.AddRow(label, fee)
+	}
+
 	table.AddRow("Quantization Mask:", v.QuantizationMask)
 
 	fmt.Println(table)
