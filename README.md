@@ -306,6 +306,24 @@ func ExampleGetHeight() {
 }
 ```
 
+### Errors
+
+`JSONRPC` and `RawRequest` return plain `error` values. The text stays
+human-readable, and `errors.Is` / `errors.As` can tell the failure kinds apart:
+
+- `*rpc.RPCError` is a JSON-RPC error object (`Code`, `Message`). The string
+  keeps the form `rpc error: code=<n> message=<text>`. `errors.Is(err, rpc.ErrRPC)`
+  matches it.
+- `*rpc.HTTPStatusError` is an HTTP status outside 2xx. `StatusCode` is the
+  status and `Body` is the response body truncated to `rpc.MaxHTTPErrorBody`
+  (512 bytes). The string keeps the prefix `non-2xx status code: <status>`.
+  `errors.Is(err, rpc.ErrHTTPStatus)` matches it.
+- Transport failures wrap their cause, so `context.Canceled` and
+  `context.DeadlineExceeded` match with `errors.Is`.
+
+Retries stay off unless the client is created with `rpc.WithRetry`. Without
+that option each call performs a single attempt.
+
 ## License
 
 See [LICENSE](./LICENSE).
