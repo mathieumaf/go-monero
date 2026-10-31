@@ -1,0 +1,15 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "bans": [
+      {
+        "host": "203.0.113.30",
+        "ip": 510722251,
+        "seconds": 3600
+      }
+    ],
+    "status": "OK",
+    "untrusted": false
+  }
+}

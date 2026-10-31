@@ -18,7 +18,9 @@ jobs:
       - name: Build
         run: make install
       - name: Test
-        run: make test
+        run: go test -race ./...
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   lint:
     runs-on: ubuntu-latest
