@@ -15,6 +15,10 @@ import (
 	"strings"
 )
 
+// md5Algorithm is the only digest algorithm this client implements.
+// RFC 7616 defaults a missing algorithm to MD5.
+const md5Algorithm = "MD5"
+
 // DigestAuthTransport is an implementation of http.RoundTripper that takes
 // care of http digest authentication.
 type DigestAuthTransport struct {
@@ -92,7 +96,7 @@ func (t *DigestAuthTransport) RoundTrip(
 	}
 	resp.Body.Close()
 
-	chal, err := parseChallenge(resp.Header.Get("WWW-Authenticate"))
+	chal, err := parseWWWAuthenticate(resp.Header)
 	if err != nil {
 		return nil, fmt.Errorf("parse challenge: %w", err)
 	}
@@ -117,62 +121,252 @@ type challenge struct {
 	Qop       string
 }
 
-func parseChallenge(input string) (*challenge, error) {
-	const quotation = `"`
+// parseWWWAuthenticate selects the first Digest challenge this client can
+// satisfy. monerod advertises MD5 and MD5-sess as separate header values;
+// unsupported schemes and algorithms are skipped when another challenge
+// works.
+func parseWWWAuthenticate(header http.Header) (*challenge, error) {
+	values := header.Values("WWW-Authenticate")
+	if len(values) == 0 {
+		return nil, fmt.Errorf("missing WWW-Authenticate header")
+	}
 
-	fields, err := parseChallengeFields(input)
+	var firstErr error
+	for _, value := range values {
+		chal, err := parseChallenge(value)
+		if err == nil {
+			return chal, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	return nil, firstErr
+}
+
+// parseChallenge reads one WWW-Authenticate Digest challenge.
+//
+// Parameters may appear in any order and in any number. Unknown parameters
+// are ignored. qop may be a list; auth is selected when it is offered.
+// algorithm is optional, defaults to MD5, and is compared case-insensitively.
+func parseChallenge(input string) (*challenge, error) {
+	params, err := parseDigestParams(input)
 	if err != nil {
 		return nil, fmt.Errorf("parse challenge fields: %w", err)
 	}
 
-	c := &challenge{}
-	for _, field := range fields {
-		kv := strings.SplitN(field, "=", 2)
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("split: expected to 2 parts "+
-				"in entry, got %d. field: '%s'",
-				len(kv), field)
-		}
+	c := &challenge{Algorithm: md5Algorithm}
+	for key, value := range params {
+		applyChallengeParam(c, key, value)
+	}
 
-		key, value := kv[0], kv[1]
-		value = strings.Trim(value, quotation)
-		switch key {
-		case "qop":
-			c.Qop = value
-		case "algorithm":
-			c.Algorithm = value
-		case "realm":
-			c.Realm = value
-		case "nonce":
-			c.Nonce = value
-		case "stale":
-			c.Stale = value
-		default:
-			return nil, fmt.Errorf("unknown field '%s'", key)
-		}
+	if err := validateChallenge(c); err != nil {
+		return nil, err
 	}
 
 	return c, nil
 }
 
-func parseChallengeFields(str string) ([]string, error) {
-	const challengePrefix = "Digest "
-	const whitespaceDelimiters = " \n\r\t"
+func applyChallengeParam(c *challenge, key, value string) {
+	switch key {
+	case "realm":
+		c.Realm = value
+	case "domain":
+		c.Domain = value
+	case "nonce":
+		c.Nonce = value
+	case "opaque":
+		c.Opaque = value
+	case "stale":
+		c.Stale = value
+	case "algorithm":
+		c.Algorithm = value
+	case "qop":
+		c.Qop = value
+	}
+}
 
-	str = strings.Trim(str, whitespaceDelimiters)
-	if !strings.HasPrefix(str, challengePrefix) {
-		return nil, fmt.Errorf("bad challenge: "+
-			"input doesn't start with '%s'", challengePrefix)
+func validateChallenge(c *challenge) error {
+	if c.Realm == "" {
+		return fmt.Errorf("challenge missing realm")
+	}
+	if c.Nonce == "" {
+		return fmt.Errorf("challenge missing nonce")
 	}
 
-	str = strings.Trim(str[len(challengePrefix):], whitespaceDelimiters)
-	fields := strings.Split(str, ",")
-	if len(fields) != 5 {
-		return nil, fmt.Errorf("split: expected 5 fields, got %d",
-			len(fields))
+	algo, err := normalizeAlgorithm(c.Algorithm)
+	if err != nil {
+		return err
+	}
+	c.Algorithm = algo
+
+	qop, err := selectQop(c.Qop)
+	if err != nil {
+		return err
+	}
+	c.Qop = qop
+
+	return nil
+}
+
+func normalizeAlgorithm(raw string) (string, error) {
+	if raw == "" || strings.EqualFold(raw, md5Algorithm) {
+		return md5Algorithm, nil
 	}
 
-	return fields, nil
+	return "", fmt.Errorf("unsupported algorithm '%s'", raw)
+}
+
+// selectQop picks auth from a qop list. auth-int is not implemented.
+func selectQop(raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return "", fmt.Errorf("challenge missing qop")
+	}
+
+	for _, part := range strings.Split(raw, ",") {
+		if strings.EqualFold(strings.TrimSpace(part), "auth") {
+			return "auth", nil
+		}
+	}
+
+	return "", fmt.Errorf("qop '%s' does not offer auth", raw)
+}
+
+func parseDigestParams(input string) (map[string]string, error) {
+	rest, err := stripDigestPrefix(input)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make(map[string]string)
+	for rest != "" {
+		var key, value string
+		key, value, rest, err = readDigestParam(rest)
+		if err != nil {
+			return nil, err
+		}
+		params[strings.ToLower(strings.TrimSpace(key))] = value
+		rest = strings.TrimLeft(rest, " \t\r\n,")
+	}
+
+	if len(params) == 0 {
+		return nil, fmt.Errorf("challenge has no parameters")
+	}
+
+	return params, nil
+}
+
+func stripDigestPrefix(input string) (string, error) {
+	const prefix = "digest"
+
+	s := strings.TrimSpace(input)
+	if len(s) < len(prefix) || !strings.EqualFold(s[:len(prefix)], prefix) {
+		return "", fmt.Errorf("bad challenge: input doesn't start with 'Digest'")
+	}
+
+	rest := s[len(prefix):]
+	if rest != "" && !isDigestDelim(rest[0]) {
+		return "", fmt.Errorf("bad challenge: input doesn't start with 'Digest'")
+	}
+
+	return strings.TrimLeft(rest, " \t\r\n,"), nil
+}
+
+func isDigestDelim(b byte) bool {
+	switch b {
+	case ' ', '\t', '\r', '\n', ',':
+		return true
+	default:
+		return false
+	}
+}
+
+func readDigestParam(s string) (key, value, rest string, err error) {
+	key, rest, err = readDigestKey(s)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	if strings.HasPrefix(rest, `"`) {
+		value, rest, err = readQuotedDigestValue(rest)
+		return key, value, rest, err
+	}
+
+	value, rest = readTokenDigestValue(rest)
+	return key, value, rest, nil
+}
+
+func readDigestKey(s string) (string, string, error) {
+	key, rest, ok := strings.Cut(s, "=")
+	if !ok {
+		return "", "", fmt.Errorf("challenge parameter missing '=': '%s'",
+			truncate(s))
+	}
+
+	key = strings.TrimSpace(key)
+	if key == "" || strings.ContainsAny(key, " \t\",") {
+		return "", "", fmt.Errorf("invalid challenge parameter '%s'", key)
+	}
+
+	rest = strings.TrimLeft(rest, " \t")
+	if rest == "" {
+		return "", "", fmt.Errorf("challenge parameter '%s' missing value", key)
+	}
+
+	return key, rest, nil
+}
+
+func readQuotedDigestValue(rest string) (string, string, error) {
+	value, next, err := unquoteDigest(rest)
+	if err != nil {
+		return "", "", err
+	}
+
+	next = strings.TrimLeft(next, " \t")
+	if next != "" && next[0] != ',' {
+		return "", "", fmt.Errorf("quoted challenge value has trailing data")
+	}
+
+	return value, next, nil
+}
+
+func readTokenDigestValue(rest string) (string, string) {
+	end := strings.IndexByte(rest, ',')
+	if end < 0 {
+		return strings.TrimSpace(rest), ""
+	}
+
+	return strings.TrimSpace(rest[:end]), rest[end:]
+}
+
+func unquoteDigest(s string) (string, string, error) {
+	var b strings.Builder
+	for i := 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			if i+1 >= len(s) {
+				return "", "", fmt.Errorf("unterminated escape in challenge")
+			}
+			i++
+			b.WriteByte(s[i])
+		case '"':
+			return b.String(), s[i+1:], nil
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+
+	return "", "", fmt.Errorf("unterminated quoted string in challenge")
+}
+
+func truncate(s string) string {
+	const maxLen = 40
+	if len(s) <= maxLen {
+		return s
+	}
+
+	return s[:maxLen] + "..."
 }
 
 type credentials struct {
@@ -222,7 +416,7 @@ func (c *credentials) resp() (string, error) {
 func (c *credentials) authorize() (string, error) {
 	// Note that this is only implemented for MD5 and NOT MD5-sess.
 	// MD5-sess is rarely supported and those that do are a big mess.
-	if c.Algorithm != "MD5" {
+	if c.Algorithm != md5Algorithm {
 		return "", fmt.Errorf("unsupported algorithm '%s'",
 			c.Algorithm)
 	}
